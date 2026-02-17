@@ -61,7 +61,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           sentSet.push(notif.id)
           sentCount++
         } catch (err: unknown) {
-          const error = err as { statusCode?: number }
+          const error = err as { statusCode?: number; message?: string; body?: string }
+          debugInfo.push({ pushError: error.message, statusCode: error.statusCode, body: error.body })
           if (error.statusCode === 410) {
             await redis.del('push:subscription')
             return res.status(200).json({ sent: sentCount, error: 'Subscription expired' })
