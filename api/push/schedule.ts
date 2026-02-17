@@ -14,7 +14,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Invalid notifications array' })
   }
 
-  await redis.set('push:schedule', JSON.stringify(notifications))
+  await redis.set('push:schedule', notifications)
   // Reset sent tracking for new schedule
   await redis.del('push:sent')
 

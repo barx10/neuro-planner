@@ -14,6 +14,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Invalid subscription' })
   }
 
-  await redis.set('push:subscription', JSON.stringify(subscription))
+  if (!subscription?.keys?.auth || !subscription?.keys?.p256dh) {
+    return res.status(400).json({ error: 'Subscription missing auth/p256dh keys' })
+  }
+
+  await redis.set('push:subscription', subscription)
   res.status(200).json({ ok: true })
 }
