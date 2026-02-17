@@ -16,7 +16,8 @@ interface TaskStore {
 export const useTaskStore = create<TaskStore>((set, get) => ({
   tasks: [],
   loadTasks: async (date) => {
-    const tasks = await db.tasks.where('date').equals(date).sortBy('order')
+    const tasks = await db.tasks.where('date').equals(date).toArray()
+    tasks.sort((a, b) => a.startTime.localeCompare(b.startTime))
     set({ tasks })
   },
   addTask: async (task) => {
