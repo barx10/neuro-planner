@@ -22,6 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     subscriptionType: typeof subscription,
     subscriptionKeys: sub ? Object.keys(sub) : null,
     hasEndpoint: !!(sub as { endpoint?: string })?.endpoint,
+    endpointPreview: ((sub as { endpoint?: string })?.endpoint || '').slice(-20),
     hasAuthKey: !!keys?.auth,
     hasP256dh: !!keys?.p256dh,
     schedule,
