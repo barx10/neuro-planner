@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Home, LayoutList, Heart, Settings } from 'lucide-react'
 import { DayView } from './components/planner/DayView'
 import { ActivitiesView } from './components/planner/ActivitiesView'
 import { WellnessView } from './components/planner/WellnessView'
 import { MoodSelector } from './components/ui/MoodSelector'
 import { SettingsPanel } from './components/ui/SettingsPanel'
+import { SplashScreen } from './components/ui/SplashScreen'
 import { useSettingsStore } from './store/settingsStore'
 import { requestNotificationPermission } from './hooks/useNotifications'
 import { todayString } from './utils/timeHelpers'
@@ -14,10 +15,12 @@ import type { MoodEntry } from './types'
 type View = 'home' | 'activities' | 'wellness'
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true)
   const [view, setView] = useState<View>('home')
   const [showSettings, setShowSettings] = useState(false)
   const [mood, setMood] = useState<MoodEntry | null>(null)
   const { loadSettings } = useSettingsStore()
+  const hideSplash = useCallback(() => setShowSplash(false), [])
 
   useEffect(() => {
     loadSettings()
@@ -33,6 +36,7 @@ function App() {
 
   return (
     <div className="min-h-screen">
+      {showSplash && <SplashScreen onDone={hideSplash} />}
       {/* Decorative blobs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-purple-300/20 dark:bg-purple-900/10 rounded-full blur-3xl" />

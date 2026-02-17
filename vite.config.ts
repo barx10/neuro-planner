@@ -7,17 +7,17 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.png', 'splash.png'],
       manifest: {
         name: 'Neuro Planner',
         short_name: 'Planner',
         description: 'Visuell planlegger for nevrodivergente',
         theme_color: '#6366f1',
-        background_color: '#ffffff',
+        background_color: '#1e1b4b',
         display: 'standalone',
         orientation: 'portrait',
         icons: [
-          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }
+          { src: 'icon.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
         ]
       },
       workbox: {

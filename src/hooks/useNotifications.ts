@@ -46,7 +46,7 @@ export function playDing(type: 'soft' | 'celebrate' = 'soft') {
 
 function notify(title: string, body: string, tag?: string) {
   if (Notification.permission === 'granted') {
-    new Notification(title, { body, icon: '/icon.svg', tag })
+    new Notification(title, { body, icon: '/icon.png', tag })
   }
   if ('vibrate' in navigator) {
     navigator.vibrate([100, 50, 100])
