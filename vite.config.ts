@@ -6,6 +6,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       includeAssets: ['icon.png', 'splash.png'],
       manifest: {
@@ -20,13 +23,8 @@ export default defineConfig({
           { src: 'icon.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
         ]
       },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        runtimeCaching: [
-          { urlPattern: /^https:\/\/api\.anthropic\.com\/.*/i, handler: 'NetworkOnly' },
-          { urlPattern: /^https:\/\/generativelanguage\.googleapis\.com\/.*/i, handler: 'NetworkOnly' },
-          { urlPattern: /^https:\/\/api\.openai\.com\/.*/i, handler: 'NetworkOnly' },
-        ]
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}']
       }
     })
   ]
