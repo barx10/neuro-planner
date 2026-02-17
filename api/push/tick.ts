@@ -1,7 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { Redis } from '@upstash/redis'
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const webpush = require('web-push')
+import webpush from 'web-push'
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL!,
@@ -24,55 +23,59 @@ interface ScheduledNotification {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Auth check
-  const auth = req.headers.authorization
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
+  try {
+    // Auth check
+    const auth = req.headers.authorization
+    if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
 
-  const subJson = await redis.get<string>('push:subscription')
-  const scheduleJson = await redis.get<string>('push:schedule')
+    const subJson = await redis.get<string>('push:subscription')
+    const scheduleJson = await redis.get<string>('push:schedule')
 
-  if (!subJson || !scheduleJson) {
-    return res.status(200).json({ sent: 0, reason: 'No subscription or schedule' })
-  }
+    if (!subJson || !scheduleJson) {
+      return res.status(200).json({ sent: 0, reason: 'No subscription or schedule' })
+    }
 
-  const subscription = typeof subJson === 'string' ? JSON.parse(subJson) : subJson
-  const schedule: ScheduledNotification[] = typeof scheduleJson === 'string' ? JSON.parse(scheduleJson) : scheduleJson
-  const sentSet: string[] = (await redis.get<string[]>('push:sent')) || []
+    const subscription = typeof subJson === 'string' ? JSON.parse(subJson) : subJson
+    const schedule: ScheduledNotification[] = typeof scheduleJson === 'string' ? JSON.parse(scheduleJson) : scheduleJson
+    const sentSet: string[] = (await redis.get<string[]>('push:sent')) || []
 
-  const now = Date.now()
-  let sentCount = 0
+    const now = Date.now()
+    let sentCount = 0
 
-  for (const notif of schedule) {
-    const notifTime = new Date(notif.time).getTime()
-    if (notifTime <= now && !sentSet.includes(notif.id)) {
-      try {
-        await webpush.sendNotification(
-          subscription,
-          JSON.stringify({
-            title: `${notif.emoji} ${notif.title}`,
-            body: notif.body,
-            tag: notif.tag,
-            icon: '/icon.png',
-          })
-        )
-        sentSet.push(notif.id)
-        sentCount++
-      } catch (err: unknown) {
-        const error = err as { statusCode?: number }
-        // If subscription expired, clean up
-        if (error.statusCode === 410) {
-          await redis.del('push:subscription')
-          return res.status(200).json({ sent: sentCount, error: 'Subscription expired' })
+    for (const notif of schedule) {
+      const notifTime = new Date(notif.time).getTime()
+      if (notifTime <= now && !sentSet.includes(notif.id)) {
+        try {
+          await webpush.sendNotification(
+            subscription,
+            JSON.stringify({
+              title: `${notif.emoji} ${notif.title}`,
+              body: notif.body,
+              tag: notif.tag,
+              icon: '/icon.png',
+            })
+          )
+          sentSet.push(notif.id)
+          sentCount++
+        } catch (err: unknown) {
+          const error = err as { statusCode?: number }
+          if (error.statusCode === 410) {
+            await redis.del('push:subscription')
+            return res.status(200).json({ sent: sentCount, error: 'Subscription expired' })
+          }
         }
       }
     }
-  }
 
-  if (sentCount > 0) {
-    await redis.set('push:sent', JSON.stringify(sentSet))
-  }
+    if (sentCount > 0) {
+      await redis.set('push:sent', JSON.stringify(sentSet))
+    }
 
-  res.status(200).json({ sent: sentCount })
+    res.status(200).json({ sent: sentCount })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    res.status(500).json({ error: message })
+  }
 }
