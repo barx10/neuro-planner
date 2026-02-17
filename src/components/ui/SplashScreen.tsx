@@ -1,20 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 export function SplashScreen({ onDone }: { onDone: () => void }) {
   const [fadeOut, setFadeOut] = useState(false)
 
-  useEffect(() => {
-    const timer = setTimeout(() => setFadeOut(true), 1800)
-    const done = setTimeout(onDone, 2400)
-    return () => { clearTimeout(timer); clearTimeout(done) }
-  }, [onDone])
+  const handleTap = () => {
+    setFadeOut(true)
+    setTimeout(onDone, 500)
+  }
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center transition-opacity duration-600 ${
+      onClick={handleTap}
+      className={`fixed inset-0 z-[100] flex items-center justify-center transition-opacity duration-500 cursor-pointer ${
         fadeOut ? 'opacity-0' : 'opacity-100'
       }`}
-      style={{ background: 'linear-gradient(135deg, #1e1b4b, #312e81, #1e1b4b)' }}
+      style={{ background: '#1e1b4b' }}
     >
       <div className="flex flex-col items-center animate-scale-in">
         <img
@@ -22,6 +22,7 @@ export function SplashScreen({ onDone }: { onDone: () => void }) {
           alt="Neuro Planner"
           className="w-full max-w-xs object-contain"
         />
+        <p className="text-white/70 text-base -mt-16 animate-pulse font-semibold">Trykk for å fortsette</p>
       </div>
     </div>
   )
