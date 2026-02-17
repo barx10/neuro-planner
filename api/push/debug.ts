@@ -16,8 +16,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const schedule = await redis.get('push:schedule')
   const sent = await redis.get('push:sent')
 
+  const sub = subscription as Record<string, unknown> | null
+  const keys = (sub as { keys?: Record<string, unknown> })?.keys
   res.status(200).json({
-    hasSubscription: !!subscription,
+    subscriptionType: typeof subscription,
+    subscriptionKeys: sub ? Object.keys(sub) : null,
+    hasEndpoint: !!(sub as { endpoint?: string })?.endpoint,
+    hasAuthKey: !!keys?.auth,
+    hasP256dh: !!keys?.p256dh,
     schedule,
     sent,
     serverTime: new Date().toISOString(),
