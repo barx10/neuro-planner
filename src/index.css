@@ -1,0 +1,92 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply m-0 min-h-screen antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #f8faff 0%, #f0f0ff 50%, #fdf2f8 100%);
+    color: #1a1a2e;
+  }
+
+  .dark body {
+    background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16132d 100%);
+    color: #e8e8f0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20;
+  }
+  .dark .glass {
+    background: rgba(30, 30, 50, 0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .card-hover {
+    @apply transition-all duration-200;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px -8px rgba(99, 102, 241, 0.15);
+  }
+  .card-hover:active {
+    transform: translateY(0);
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
+  }
+
+  .btn-primary {
+    @apply relative overflow-hidden font-semibold text-white rounded-2xl transition-all duration-200;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    box-shadow: 0 4px 15px -3px rgba(99, 102, 241, 0.4);
+  }
+  .btn-primary:hover {
+    box-shadow: 0 6px 20px -3px rgba(99, 102, 241, 0.5);
+    transform: translateY(-1px);
+  }
+  .btn-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 10px -3px rgba(99, 102, 241, 0.4);
+  }
+  .btn-primary:disabled {
+    @apply opacity-50 cursor-not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .progress-ring-animated {
+    transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .fab {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    box-shadow: 0 8px 30px -4px rgba(99, 102, 241, 0.5);
+  }
+  .fab:hover {
+    box-shadow: 0 12px 40px -4px rgba(99, 102, 241, 0.6);
+    transform: scale(1.08);
+  }
+  .fab:active {
+    transform: scale(0.95);
+  }
+}
