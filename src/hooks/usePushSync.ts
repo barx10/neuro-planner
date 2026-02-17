@@ -16,8 +16,8 @@ export function buildNotificationSchedule(tasks: Task[], dateStr: string): PushN
   for (const task of tasks) {
     if (task.completed) continue
     const [h, m] = task.startTime.split(':').map(Number)
-    const start = new Date(dateStr)
-    start.setHours(h, m, 0, 0)
+    const [year, month, day] = dateStr.split('-').map(Number)
+    const start = new Date(year, month - 1, day, h, m, 0, 0)
     const endMs = start.getTime() + task.durationMinutes * 60_000
 
     // Pre-warning: 5 min before

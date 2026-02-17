@@ -67,7 +67,8 @@ export function notifyCompletion(taskEmoji: string, taskTitle: string, completio
 
 function getTaskTimeMs(task: Task, dateStr: string): number {
   const [hours, minutes] = task.startTime.split(':').map(Number)
-  const d = new Date(dateStr)
+  const [year, month, day] = dateStr.split('-').map(Number)
+  const d = new Date(year, month - 1, day)
   d.setHours(hours, minutes, 0, 0)
   return d.getTime()
 }
