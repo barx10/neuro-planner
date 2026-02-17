@@ -11,13 +11,58 @@ export async function requestNotificationPermission(): Promise<boolean> {
   return permission === 'granted'
 }
 
-function notify(title: string, body: string) {
+/** Play a gentle "ding" sound using Web Audio API */
+export function playDing(type: 'soft' | 'celebrate' = 'soft') {
+  try {
+    const ctx = new AudioContext()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+
+    if (type === 'celebrate') {
+      // Two-tone happy chime
+      osc.frequency.setValueAtTime(880, ctx.currentTime)        // A5
+      osc.frequency.setValueAtTime(1108.73, ctx.currentTime + 0.15) // C#6
+      gain.gain.setValueAtTime(0.3, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 0.5)
+    } else {
+      // Gentle single ding
+      osc.frequency.setValueAtTime(830, ctx.currentTime) // ~G#5
+      osc.type = 'sine'
+      gain.gain.setValueAtTime(0.2, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 0.4)
+    }
+
+    osc.onended = () => ctx.close()
+  } catch {
+    // Audio not available, silently ignore
+  }
+}
+
+function notify(title: string, body: string, tag?: string) {
   if (Notification.permission === 'granted') {
-    new Notification(title, { body, icon: '/icon.svg' })
+    new Notification(title, { body, icon: '/icon.svg', tag })
   }
   if ('vibrate' in navigator) {
     navigator.vibrate([100, 50, 100])
   }
+}
+
+/** Send encouragement as notification + sound (works with screen off) */
+export function notifyEncouragement(emoji: string, text: string) {
+  playDing('soft')
+  notify(`${emoji} ${text}`, 'Fortsett det gode arbeidet!', 'encouragement')
+}
+
+/** Send completion notification + celebration sound */
+export function notifyCompletion(taskEmoji: string, taskTitle: string, completionText: string) {
+  playDing('celebrate')
+  notify(`${taskEmoji} ${taskTitle} fullført!`, completionText, 'completion')
 }
 
 function getTaskTimeMs(task: Task, dateStr: string): number {

@@ -1,8 +1,29 @@
+import { useState, useEffect, useMemo } from 'react'
 import { X, Play, Pause, RotateCcw } from 'lucide-react'
 import type { Task } from '../../types'
 import { useTimer } from '../../hooks/useTimer'
 import { formatSeconds } from '../../utils/timeHelpers'
 import { hexToRgba } from '../../utils/colorHelpers'
+import { notifyEncouragement, notifyCompletion } from '../../hooks/useNotifications'
+
+const ENCOURAGEMENTS = [
+  { emoji: '💪', text: 'Du gjør det bra!' },
+  { emoji: '🌟', text: 'Kjempefint fokus!' },
+  { emoji: '🔥', text: 'Du er i flytsonen!' },
+  { emoji: '👏', text: 'Fortsett sånn!' },
+  { emoji: '🧠', text: 'Hjernen din jobber hardt!' },
+  { emoji: '✨', text: 'Så bra du holder ut!' },
+  { emoji: '🎯', text: 'Du er på rett spor!' },
+  { emoji: '💎', text: 'Fantastisk innsats!' },
+]
+
+const COMPLETIONS = [
+  { emoji: '🎉', text: 'Bra jobba!', sub: 'Du klarte det!' },
+  { emoji: '🏆', text: 'Mester!', sub: 'Oppgaven er fullført!' },
+  { emoji: '⭐', text: 'Strålende!', sub: 'Nok en oppgave i boks!' },
+  { emoji: '🥳', text: 'Hurra!', sub: 'Du er fantastisk!' },
+  { emoji: '💪', text: 'Sterkt!', sub: 'Tid for en velfortjent pause?' },
+]
 
 interface FocusTimerProps {
   task: Task
@@ -12,6 +33,44 @@ interface FocusTimerProps {
 export function FocusTimer({ task, onClose }: FocusTimerProps) {
   const totalSeconds = task.durationMinutes * 60
   const { remaining, running, progress, start, pause, reset } = useTimer(totalSeconds)
+
+  const [encouragement, setEncouragement] = useState<typeof ENCOURAGEMENTS[0] | null>(null)
+  const [encourageVisible, setEncourageVisible] = useState(false)
+  const [shownAt, setShownAt] = useState<Set<string>>(new Set())
+  const completion = useMemo(() => COMPLETIONS[Math.floor(Math.random() * COMPLETIONS.length)], [])
+
+  const elapsed = totalSeconds - remaining
+  const fiveMinBefore = totalSeconds - 5 * 60
+
+  useEffect(() => {
+    if (!running || remaining === 0) return
+
+    // After 5 minutes of work
+    if (elapsed >= 5 * 60 && !shownAt.has('5min') && totalSeconds > 5 * 60) {
+      const msg = ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)]
+      setEncouragement(msg)
+      setEncourageVisible(true)
+      setShownAt(prev => new Set(prev).add('5min'))
+      notifyEncouragement(msg.emoji, msg.text)
+      setTimeout(() => setEncourageVisible(false), 4000)
+    }
+
+    // 5 minutes before end (only if task is longer than 10 min so it doesn't overlap)
+    if (fiveMinBefore > 5 * 60 && remaining <= 5 * 60 && remaining > 0 && !shownAt.has('5before')) {
+      const msg = ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)]
+      setEncouragement(msg)
+      setEncourageVisible(true)
+      setShownAt(prev => new Set(prev).add('5before'))
+      notifyEncouragement(msg.emoji, msg.text)
+      setTimeout(() => setEncourageVisible(false), 4000)
+    }
+
+    // Completion
+    if (remaining === 0 && !shownAt.has('done')) {
+      setShownAt(prev => new Set(prev).add('done'))
+      notifyCompletion(task.emoji, task.title, completion.sub)
+    }
+  }, [running, remaining, elapsed, fiveMinBefore, totalSeconds, shownAt, task, completion])
 
   const radius = 90
   const circumference = 2 * Math.PI * radius
@@ -74,7 +133,11 @@ export function FocusTimer({ task, onClose }: FocusTimerProps) {
               {formatSeconds(remaining)}
             </span>
             <span className="text-white/40 text-sm mt-1">
-              {remaining === 0 ? 'Ferdig!' : running ? 'Fokus...' : 'Pause'}
+              {remaining === 0 ? 'Ferdig!' : running ? (
+                encourageVisible && encouragement ? (
+                  <span className="animate-fade-in text-white/70">{encouragement.emoji} {encouragement.text}</span>
+                ) : 'Fokus...'
+              ) : 'Pause'}
             </span>
           </div>
         </div>
@@ -117,9 +180,10 @@ export function FocusTimer({ task, onClose }: FocusTimerProps) {
         </div>
 
         {remaining === 0 && (
-          <div className="mt-6 animate-bounce-in">
-            <p className="text-2xl font-bold text-white">{'\u{1F389}'} Bra jobba!</p>
-            <p className="text-white/50 text-sm mt-1">Tid for neste oppgave</p>
+          <div className="mt-6 animate-bounce-in text-center">
+            <p className="text-4xl mb-2">{completion.emoji}</p>
+            <p className="text-2xl font-bold text-white">{completion.text}</p>
+            <p className="text-white/60 text-sm mt-1">{completion.sub}</p>
           </div>
         )}
       </div>

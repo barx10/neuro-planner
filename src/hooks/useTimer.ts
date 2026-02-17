@@ -12,12 +12,6 @@ export function useTimer(durationSeconds: number) {
           if (prev <= 1) {
             clearInterval(intervalRef.current)
             setRunning(false)
-            if (Notification.permission === 'granted') {
-              new Notification('Oppgave fullført!', {
-                body: 'Tid for neste oppgave.',
-                icon: '/icon-192.png'
-              })
-            }
             return 0
           }
           return prev - 1

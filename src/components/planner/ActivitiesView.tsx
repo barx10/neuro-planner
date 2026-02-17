@@ -13,12 +13,12 @@ const CATEGORIES: { key: ActivityCategory; label: string; icon: typeof Briefcase
 
 const SUGGESTIONS: { title: string; emoji: string; category: ActivityCategory }[] = [
   // Arbeid
-  { title: 'Jobbe', emoji: '\u{1F4BB}', category: 'arbeid' },
-  { title: 'Skole', emoji: '\u{1F3EB}', category: 'arbeid' },
   { title: 'Lekser', emoji: '\u{1F4DA}', category: 'arbeid' },
   { title: 'M\u00F8te', emoji: '\u{1F4CB}', category: 'arbeid' },
   { title: 'E-post', emoji: '\u{1F4E7}', category: 'arbeid' },
   { title: 'Prosjekt', emoji: '\u{1F3AF}', category: 'arbeid' },
+  { title: 'Presentasjon', emoji: '\u{1F4CA}', category: 'arbeid' },
+  { title: 'Lesing', emoji: '\u{1F4D6}', category: 'arbeid' },
   // Husholdning
   { title: 'Vaske kl\u00E6r', emoji: '\u{1F9FA}', category: 'husholdning' },
   { title: 'Handle mat', emoji: '\u{1F6D2}', category: 'husholdning' },

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Sparkles, Loader2, Plus, Check } from 'lucide-react'
+import { Sparkles, Loader2, Plus, Check, Clock, Pencil } from 'lucide-react'
 import { generateDayPlan } from '../../hooks/useAi'
 import { useTaskStore } from '../../store/taskStore'
 import { TASK_COLORS, hexToRgba } from '../../utils/colorHelpers'
@@ -19,6 +19,11 @@ export function AiPlanner({ date }: AiPlannerProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [applied, setApplied] = useState(false)
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
+
+  const updatePlanItem = (index: number, field: 'startTime' | 'durationMinutes', value: string | number) => {
+    setPlan(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item))
+  }
   const { addTask, tasks } = useTaskStore()
 
   const handleGenerate = async () => {
@@ -103,20 +108,54 @@ export function AiPlanner({ date }: AiPlannerProps) {
               {plan.map((item, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-3 p-3 rounded-xl border border-white/40 dark:border-white/5 animate-slide-up"
+                  className="rounded-xl border border-white/40 dark:border-white/5 animate-slide-up overflow-hidden"
                   style={{
                     background: `linear-gradient(135deg, ${hexToRgba(TASK_COLORS[i % TASK_COLORS.length], 0.08)}, transparent)`,
                     animationDelay: `${i * 60}ms`,
                     animationFillMode: 'both',
                   }}
                 >
-                  <span className="text-lg">{item.emoji}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">{item.title}</p>
-                    <p className="text-[11px] text-gray-400">
-                      {item.startTime} ({item.durationMinutes} min)
-                    </p>
+                  <div className="flex items-center gap-3 p-3">
+                    <span className="text-lg">{item.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm truncate">{item.title}</p>
+                      <p className="text-[11px] text-gray-400">
+                        {item.startTime} · {item.durationMinutes} min
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setEditingIndex(editingIndex === i ? null : i)}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                      aria-label="Endre tid"
+                    >
+                      {editingIndex === i ? <Check size={14} className="text-green-500" /> : <Pencil size={14} className="text-gray-400" />}
+                    </button>
                   </div>
+                  {editingIndex === i && (
+                    <div className="flex items-center gap-3 px-3 pb-3 pt-0 animate-fade-in">
+                      <div className="flex items-center gap-1.5">
+                        <Clock size={12} className="text-gray-400" />
+                        <input
+                          type="time"
+                          value={item.startTime}
+                          onChange={e => updatePlanItem(i, 'startTime', e.target.value)}
+                          className="px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm w-[100px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] text-gray-400">Varighet</span>
+                        <select
+                          value={item.durationMinutes}
+                          onChange={e => updatePlanItem(i, 'durationMinutes', Number(e.target.value))}
+                          className="px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          {[5, 10, 15, 20, 25, 30, 45, 60, 90, 120].map(m => (
+                            <option key={m} value={m}>{m} min</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
               <button
