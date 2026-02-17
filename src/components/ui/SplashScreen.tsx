@@ -19,7 +19,7 @@ export function SplashScreen({ onDone }: { onDone: () => void }) {
       <div className="flex flex-col items-center animate-scale-in">
         <img
           src="/splash.png"
-          alt="Neuro Planner"
+          alt="Neurominder"
           className="w-full max-w-xs object-contain"
         />
         <p className="text-white/70 text-base -mt-16 animate-pulse font-semibold">Trykk for å fortsette</p>

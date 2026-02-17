@@ -17,7 +17,7 @@ self.addEventListener('push', (event) => {
   const { title, body, icon, tag } = data
 
   event.waitUntil(
-    self.registration.showNotification(title || 'Neuro Planner', {
+    self.registration.showNotification(title || 'Neurominder', {
       body: body || '',
       icon: icon || '/icon.png',
       badge: '/icon.png',

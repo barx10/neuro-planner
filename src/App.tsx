@@ -51,7 +51,7 @@ function App() {
       <header className="sticky top-0 z-30 glass rounded-b-2xl">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
           <h1 className="text-xl font-extrabold gradient-text tracking-tight">
-            Neuro Planner
+            Neurominder
           </h1>
           <div className="flex items-center gap-1">
             <button

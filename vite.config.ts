@@ -12,8 +12,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.png', 'splash.png'],
       manifest: {
-        name: 'Neuro Planner',
-        short_name: 'Planner',
+        name: 'Neurominder',
+        short_name: 'Neurominder',
         description: 'Visuell planlegger for nevrodivergente',
         theme_color: '#6366f1',
         background_color: '#1e1b4b',
