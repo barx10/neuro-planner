@@ -12,19 +12,17 @@ export function AboutView() {
         <h2 className="text-2xl font-extrabold mb-1">Neurominder</h2>
         <p className="text-sm text-gray-400 mb-6">Din visuelle planlegger</p>
 
-        <div className="glass rounded-2xl p-5 w-full text-left space-y-4 mb-6">
+        <div className="glass rounded-2xl p-5 w-full text-left space-y-3 mb-6">
+          <p className="font-semibold text-sm">Kenneth Bareksten</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Lektor og hobbyprogrammerer</p>
           <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-300">
-            Neurominder er laget for deg som tenker litt annerledes. Appen hjelper med visuell struktur,
-            tidsplanlegging og AI-støttet oppgavenedbrytning — tilpasset ADHD og autisme.
-          </p>
-          <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-300">
-            Utviklet av Kenneth Bareksten.
+            Lager digitale verktøy for å gjøre hverdagen litt enklere og mer kreativ.
           </p>
         </div>
 
         <div className="w-full space-y-3">
           <a
-            href="https://barx10.github.io"
+            href="https://laererliv.no"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-3 p-4 rounded-2xl glass border border-white/40 dark:border-white/5 hover:bg-white/80 dark:hover:bg-white/5 transition-all active:scale-[0.98]"
@@ -34,12 +32,12 @@ export function AboutView() {
             </div>
             <div className="text-left">
               <p className="font-semibold text-sm">Nettside</p>
-              <p className="text-[11px] text-gray-400">barx10.github.io</p>
+              <p className="text-[11px] text-gray-400">laererliv.no</p>
             </div>
           </a>
 
           <a
-            href="mailto:kenneth@barx10.com"
+            href="mailto:kenneth@laererliv.no"
             className="flex items-center gap-3 p-4 rounded-2xl glass border border-white/40 dark:border-white/5 hover:bg-white/80 dark:hover:bg-white/5 transition-all active:scale-[0.98]"
           >
             <div className="w-10 h-10 rounded-xl bg-pink-500/10 flex items-center justify-center">
@@ -47,7 +45,7 @@ export function AboutView() {
             </div>
             <div className="text-left">
               <p className="font-semibold text-sm">Kontakt</p>
-              <p className="text-[11px] text-gray-400">kenneth@barx10.com</p>
+              <p className="text-[11px] text-gray-400">kenneth@laererliv.no</p>
             </div>
           </a>
         </div>
