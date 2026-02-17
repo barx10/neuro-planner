@@ -23,7 +23,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Dynamic import to avoid bundling issues
-    const webpush = await import('web-push')
+    const webpushModule = await import('web-push')
+    const webpush = webpushModule.default || webpushModule
     webpush.setVapidDetails(
       process.env.VAPID_SUBJECT!,
       process.env.VAPID_PUBLIC_KEY!,
