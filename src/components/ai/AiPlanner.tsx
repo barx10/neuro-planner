@@ -35,8 +35,9 @@ export function AiPlanner({ date }: AiPlannerProps) {
       const result = await generateDayPlan(input)
       setPlan(result.tasks)
       setAnalysis(result.analysis)
-    } catch {
-      setError('Kunne ikke lage plan. Sjekk API-nøkkelen i innstillinger.')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Ukjent feil'
+      setError(`Kunne ikke lage plan: ${msg}`)
     }
     setLoading(false)
   }

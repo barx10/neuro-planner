@@ -139,10 +139,12 @@ Ingen markdown, ingen forklaring utenfor JSON. Kun JSON-objektet.`,
     `Lag en realistisk dagplan basert på dette: "${input}"`,
     1500
   )
-  const parsed = JSON.parse(result)
+  // Strip markdown code fences if present
+  const cleaned = result.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim()
+  const parsed = JSON.parse(cleaned)
   // Handle both { tasks, analysis } and plain array format
   if (Array.isArray(parsed)) {
     return { tasks: parsed, analysis: '' }
   }
-  return parsed
+  return { tasks: parsed.tasks || [], analysis: parsed.analysis || '' }
 }
