@@ -31,16 +31,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       process.env.VAPID_PRIVATE_KEY!
     )
 
-    const subJson = await redis.get<string>('push:subscription')
-    const scheduleJson = await redis.get<string>('push:schedule')
+    const subscription = await redis.get('push:subscription') as { endpoint: string; keys: { p256dh: string; auth: string } } | null
+    const schedule = await redis.get('push:schedule') as ScheduledNotification[] | null
 
-    if (!subJson || !scheduleJson) {
+    if (!subscription || !schedule) {
       return res.status(200).json({ sent: 0, reason: 'No subscription or schedule' })
     }
 
-    const subscription = typeof subJson === 'string' ? JSON.parse(subJson) : subJson
-    const schedule: ScheduledNotification[] = typeof scheduleJson === 'string' ? JSON.parse(scheduleJson) : scheduleJson
-    const sentSet: string[] = (await redis.get<string[]>('push:sent')) || []
+    const sentSet: string[] = (await redis.get('push:sent') as string[] | null) || []
 
     const now = Date.now()
     let sentCount = 0
@@ -71,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (sentCount > 0) {
-      await redis.set('push:sent', JSON.stringify(sentSet))
+      await redis.set('push:sent', sentSet)
     }
 
     res.status(200).json({ sent: sentCount })
