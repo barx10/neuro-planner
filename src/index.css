@@ -55,6 +55,21 @@
     background-image: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
   }
 
+  .glow-text {
+    animation: glow-pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes glow-pulse {
+    0%, 100% {
+      text-shadow: 0 0 10px rgba(99, 102, 241, 0.6), 0 0 25px rgba(168, 85, 247, 0.4), 0 0 35px rgba(236, 72, 153, 0.2);
+      filter: brightness(1.1);
+    }
+    50% {
+      text-shadow: 0 0 18px rgba(99, 102, 241, 0.8), 0 0 40px rgba(168, 85, 247, 0.6), 0 0 60px rgba(236, 72, 153, 0.35);
+      filter: brightness(1.35);
+    }
+  }
+
   .btn-primary {
     @apply relative overflow-hidden font-semibold text-white rounded-2xl transition-all duration-200;
     background: linear-gradient(135deg, #6366f1, #8b5cf6);
