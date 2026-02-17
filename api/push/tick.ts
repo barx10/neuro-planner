@@ -42,9 +42,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const now = Date.now()
     let sentCount = 0
+    const debugInfo: unknown[] = []
 
     for (const notif of schedule) {
       const notifTime = new Date(notif.time).getTime()
+      debugInfo.push({ id: notif.id, notifTime, now, isDue: notifTime <= now, alreadySent: sentSet.includes(notif.id) })
       if (notifTime <= now && !sentSet.includes(notif.id)) {
         try {
           await webpush.sendNotification(
@@ -72,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await redis.set('push:sent', sentSet)
     }
 
-    res.status(200).json({ sent: sentCount })
+    res.status(200).json({ sent: sentCount, debug: debugInfo })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     const stack = err instanceof Error ? err.stack : ''
