@@ -50,7 +50,20 @@ export function AboutView() {
           </a>
         </div>
 
-        <p className="text-[11px] text-gray-300 dark:text-gray-600 mt-8">
+        <a
+          href="https://laererliv.no"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-8 block rounded-2xl overflow-hidden bg-white shadow-md hover:shadow-lg transition-shadow active:scale-[0.98]"
+        >
+          <img
+            src="/laererliv-logo.png"
+            alt="Lærerliv - Fra klasserom til storsamfunn"
+            className="w-full max-w-[280px] p-4"
+          />
+        </a>
+
+        <p className="text-[11px] text-gray-300 dark:text-gray-600 mt-6">
           Versjon 1.0 &middot; Laget med hjertet i Norge
         </p>
       </div>
