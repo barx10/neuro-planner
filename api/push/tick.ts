@@ -1,17 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { Redis } from '@upstash/redis'
-import webpush from 'web-push'
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL!,
   token: process.env.KV_REST_API_TOKEN!,
 })
-
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT!,
-  process.env.VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
 
 interface ScheduledNotification {
   id: string
@@ -24,11 +17,18 @@ interface ScheduledNotification {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    // Auth check
     const auth = req.headers.authorization
     if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
       return res.status(401).json({ error: 'Unauthorized' })
     }
+
+    // Dynamic import to avoid bundling issues
+    const webpush = await import('web-push')
+    webpush.setVapidDetails(
+      process.env.VAPID_SUBJECT!,
+      process.env.VAPID_PUBLIC_KEY!,
+      process.env.VAPID_PRIVATE_KEY!
+    )
 
     const subJson = await redis.get<string>('push:subscription')
     const scheduleJson = await redis.get<string>('push:schedule')
@@ -76,6 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(200).json({ sent: sentCount })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
-    res.status(500).json({ error: message })
+    const stack = err instanceof Error ? err.stack : ''
+    res.status(500).json({ error: message, stack })
   }
 }
