@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { useTaskStore } from '../../store/taskStore'
+import { useActivityStore } from '../../store/activityStore'
 import { ColorPicker } from '../ui/ColorPicker'
 import { EmojiPicker } from '../ui/EmojiPicker'
 import { TASK_COLORS } from '../../utils/colorHelpers'
@@ -13,12 +14,22 @@ interface TaskFormProps {
 
 export function TaskForm({ date, defaultTime, onClose }: TaskFormProps) {
   const { addTask, tasks } = useTaskStore()
+  const { activities, loadActivities } = useActivityStore()
   const [title, setTitle] = useState('')
   const [emoji, setEmoji] = useState('\u2B50')
   const [color, setColor] = useState(TASK_COLORS[4])
   const [startTime, setStartTime] = useState(defaultTime ?? '09:00')
   const [duration, setDuration] = useState(30)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (activities.length === 0) loadActivities()
+  }, [activities.length, loadActivities])
+
+  const selectActivity = (act: { title: string; emoji: string }) => {
+    setTitle(act.title)
+    setEmoji(act.emoji)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,6 +68,29 @@ export function TaskForm({ date, defaultTime, onClose }: TaskFormProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {activities.length > 0 && (
+            <div>
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">Hurtigvalg</label>
+              <div className="flex flex-wrap gap-1.5">
+                {activities.map(act => (
+                  <button
+                    key={act.id}
+                    type="button"
+                    onClick={() => selectActivity(act)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium transition-all active:scale-95 ${
+                      title === act.title
+                        ? 'bg-indigo-500 text-white'
+                        : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    <span>{act.emoji}</span>
+                    <span>{act.title}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-3 items-start">
             <EmojiPicker value={emoji} onChange={setEmoji} />
             <input
