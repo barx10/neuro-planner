@@ -4,11 +4,6 @@ export function AboutView() {
   return (
     <div className="max-w-lg mx-auto px-4 pb-24">
       <div className="py-5 flex flex-col items-center text-center">
-        <img
-          src="/splash.png"
-          alt="Neurominder"
-          className="w-40 rounded-2xl mb-5"
-        />
         <h2 className="text-2xl font-extrabold mb-1">Neurominder</h2>
         <p className="text-sm text-gray-400 mb-6">Din visuelle planlegger</p>
 
@@ -59,7 +54,7 @@ export function AboutView() {
           <img
             src="/laererliv-logo.png"
             alt="Lærerliv - Fra klasserom til storsamfunn"
-            className="w-full max-w-[280px] p-4"
+            className="w-full max-w-[160px] p-3"
           />
         </a>
 
