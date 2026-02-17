@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { Redis } from '@upstash/redis'
-import webpush from 'web-push'
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const webpush = require('web-push')
 
 const redis = new Redis({
   url: process.env.KV_REST_API_URL!,
