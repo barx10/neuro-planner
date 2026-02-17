@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { X, Trash2, Eye, EyeOff } from 'lucide-react'
+import { X, Trash2, Eye, EyeOff, Bell, BellOff } from 'lucide-react'
 import { useSettingsStore } from '../../store/settingsStore'
 import { db } from '../../db/database'
 import { ConfirmDialog } from './ConfirmDialog'
+import { requestNotificationPermission } from '../../hooks/useNotifications'
+import { subscribeToPush } from '../../utils/pushSubscription'
 import type { AiProvider, AiModel } from '../../types'
 
 interface SettingsPanelProps {
@@ -46,6 +48,19 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const { settings, updateSettings } = useSettingsStore()
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [showKey, setShowKey] = useState<AiProvider | null>(null)
+  const [notifStatus, setNotifStatus] = useState<string>(
+    typeof Notification !== 'undefined' ? Notification.permission : 'unsupported'
+  )
+
+  const handleEnableNotifications = async () => {
+    const granted = await requestNotificationPermission()
+    if (granted) {
+      await subscribeToPush()
+      setNotifStatus('granted')
+    } else {
+      setNotifStatus(Notification.permission)
+    }
+  }
 
   const handleClearData = async () => {
     await db.tasks.clear()
@@ -197,6 +212,35 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Notifications */}
+          <div>
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">
+              Varsler
+            </label>
+            {notifStatus === 'granted' ? (
+              <div className="flex items-center gap-3 p-4 rounded-2xl border-2 border-green-100 dark:border-green-900/30 text-green-600">
+                <Bell size={18} />
+                <span className="font-semibold text-sm">Varsler er aktivert</span>
+              </div>
+            ) : notifStatus === 'denied' ? (
+              <div className="flex items-center gap-3 p-4 rounded-2xl border-2 border-red-100 dark:border-red-900/30 text-red-500">
+                <BellOff size={18} />
+                <div>
+                  <p className="font-semibold text-sm">Varsler er blokkert</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">Endre i nettleser-/telefoninnstillinger</p>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={handleEnableNotifications}
+                className="w-full flex items-center gap-3 p-4 rounded-2xl border-2 border-indigo-100 dark:border-indigo-900/30 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all active:scale-[0.98]"
+              >
+                <Bell size={18} />
+                <span className="font-semibold text-sm">Aktiver varsler</span>
+              </button>
+            )}
           </div>
 
           {/* Clear data */}
