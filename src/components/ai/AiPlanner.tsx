@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Sparkles, Loader2, Plus, Check, Clock, Pencil } from 'lucide-react'
+import { Sparkles, Loader2, Plus, Check, Clock, Pencil, Brain } from 'lucide-react'
 import { generateDayPlan } from '../../hooks/useAi'
 import { useTaskStore } from '../../store/taskStore'
 import { TASK_COLORS, hexToRgba } from '../../utils/colorHelpers'
@@ -16,6 +16,7 @@ export function AiPlanner({ date }: AiPlannerProps) {
     startTime: string
     durationMinutes: number
   }>>([])
+  const [analysis, setAnalysis] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [applied, setApplied] = useState(false)
@@ -32,7 +33,8 @@ export function AiPlanner({ date }: AiPlannerProps) {
     setError('')
     try {
       const result = await generateDayPlan(input)
-      setPlan(result)
+      setPlan(result.tasks)
+      setAnalysis(result.analysis)
     } catch {
       setError('Kunne ikke lage plan. Sjekk API-nøkkelen i innstillinger.')
     }
@@ -60,6 +62,7 @@ export function AiPlanner({ date }: AiPlannerProps) {
     setTimeout(() => {
       setPlan([])
       setInput('')
+      setAnalysis('')
       setApplied(false)
     }, 2000)
   }
@@ -105,6 +108,12 @@ export function AiPlanner({ date }: AiPlannerProps) {
 
           {plan.length > 0 && (
             <div className="mt-3 space-y-2 animate-slide-up">
+              {analysis && (
+                <div className="flex gap-2.5 p-3.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/30 animate-fade-in">
+                  <Brain size={16} className="text-indigo-500 mt-0.5 shrink-0" />
+                  <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{analysis}</p>
+                </div>
+              )}
               {plan.map((item, i) => (
                 <div
                   key={i}

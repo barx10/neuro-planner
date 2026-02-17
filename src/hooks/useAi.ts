@@ -103,18 +103,46 @@ Eksempel: ["Steg 1", "Steg 2", "Steg 3"]`,
   return JSON.parse(result)
 }
 
-export async function generateDayPlan(input: string): Promise<Array<{
-  title: string
-  emoji: string
-  startTime: string
-  durationMinutes: number
-}>> {
+export interface DayPlanResult {
+  tasks: Array<{
+    title: string
+    emoji: string
+    startTime: string
+    durationMinutes: number
+  }>
+  analysis: string
+}
+
+export async function generateDayPlan(input: string): Promise<DayPlanResult> {
+  const now = new Date()
+  const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+
   const result = await chat(
-    `Du lager dagplaner for nevrodivergente. Svar ALLTID med kun en JSON-array.
-Hvert objekt har: title (string), emoji (string), startTime ("HH:mm"), durationMinutes (number).
-Ingen forklaring, ingen markdown. Kun JSON.`,
+    `Du er en smart dagplanlegger for nevrodivergente (ADHD/autisme). Brukeren er i Norge (CET/CEST).
+Klokken er nå ${currentTime}. Planlegg KUN fremover fra nå.
+
+Svar ALLTID med et JSON-objekt med to felter:
+1. "tasks": en array med oppgaver. Hvert objekt: { title, emoji, startTime ("HH:mm"), durationMinutes }
+2. "analysis": en kort, vennlig analyse (2-3 setninger) om dagplanen. Vurder:
+   - Er det nok pauser mellom oppgavene?
+   - Er mengden realistisk for én dag?
+   - Er krevende oppgaver lagt til tidspunkt med typisk høyere energi?
+   - Tips tilpasset nevrodivergente (f.eks. korte økter, belønningspauser)
+
+Regler for oppgavene:
+- Legg inn korte pauser (5-15 min) mellom krevende oppgaver
+- Ikke planlegg mer enn 6 timer aktivt arbeid per dag
+- Varier mellom krevende og lette oppgaver
+- Start aldri før ${currentTime}
+
+Ingen markdown, ingen forklaring utenfor JSON. Kun JSON-objektet.`,
     `Lag en realistisk dagplan basert på dette: "${input}"`,
-    1000
+    1500
   )
-  return JSON.parse(result)
+  const parsed = JSON.parse(result)
+  // Handle both { tasks, analysis } and plain array format
+  if (Array.isArray(parsed)) {
+    return { tasks: parsed, analysis: '' }
+  }
+  return parsed
 }
