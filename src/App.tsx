@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Home, LayoutList, Heart, Settings } from 'lucide-react'
+import { Home, LayoutList, Heart, Settings, TrendingUp, Info } from 'lucide-react'
 import { DayView } from './components/planner/DayView'
 import { ActivitiesView } from './components/planner/ActivitiesView'
 import { WellnessView } from './components/planner/WellnessView'
+import { ProgressView } from './components/planner/ProgressView'
+import { AboutView } from './components/planner/AboutView'
 import { MoodSelector } from './components/ui/MoodSelector'
 import { SettingsPanel } from './components/ui/SettingsPanel'
 import { SplashScreen } from './components/ui/SplashScreen'
@@ -13,7 +15,7 @@ import { todayString } from './utils/timeHelpers'
 import { db } from './db/database'
 import type { MoodEntry } from './types'
 
-type View = 'home' | 'activities' | 'wellness'
+type View = 'home' | 'activities' | 'wellness' | 'progress' | 'about'
 
 function App() {
   const [showSplash, setShowSplash] = useState(true)
@@ -77,6 +79,8 @@ function App() {
         {view === 'home' && <DayView />}
         {view === 'activities' && <ActivitiesView />}
         {view === 'wellness' && <WellnessView />}
+        {view === 'progress' && <ProgressView />}
+        {view === 'about' && <AboutView />}
       </main>
 
       {/* Bottom navigation */}
@@ -85,7 +89,9 @@ function App() {
           {([
             { key: 'home' as const, icon: Home, label: 'Hjem' },
             { key: 'activities' as const, icon: LayoutList, label: 'Aktiviteter' },
+            { key: 'progress' as const, icon: TrendingUp, label: 'Progresjon' },
             { key: 'wellness' as const, icon: Heart, label: 'Velvære' },
+            { key: 'about' as const, icon: Info, label: 'Om' },
           ]).map(tab => (
             <button
               key={tab.key}
