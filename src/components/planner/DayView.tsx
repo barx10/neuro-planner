@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { Plus, ChevronLeft, ChevronRight, Trophy, Sunrise, Sun, Moon } from 'lucide-react'
-import { format, addDays, subDays } from 'date-fns'
+import { format, addDays, subDays, startOfWeek } from 'date-fns'
+import { nb } from 'date-fns/locale'
 import { useTaskStore } from '../../store/taskStore'
 import type { Task } from '../../types'
 import { formatDate, todayString } from '../../utils/timeHelpers'
@@ -10,6 +11,7 @@ import { scheduleNotificationsForTasks, getCurrentTask, clearScheduledNotificati
 import { TaskCard } from './TaskCard'
 import { TaskForm } from './TaskForm'
 import { FocusTimer } from './FocusTimer'
+import { PomodoroTimer } from './PomodoroTimer'
 import { AiPlanner } from '../ai/AiPlanner'
 
 type TimeSlot = 'morgen' | 'dag' | 'kveld'
@@ -27,11 +29,65 @@ function getSlot(startTime: string): TimeSlot {
   return 'kveld'
 }
 
+function getTimeStatus(task: Task, dateStr: string): { type: 'starts-in' | 'in-progress'; minutes: number } | undefined {
+  if (task.completed) return undefined
+  const today = todayString()
+  if (dateStr !== today) return undefined
+
+  const now = new Date()
+  const [sh, sm] = task.startTime.split(':').map(Number)
+  const startMs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), sh, sm).getTime()
+  const endMs = startMs + task.durationMinutes * 60 * 1000
+  const nowMs = now.getTime()
+
+  if (nowMs >= startMs && nowMs < endMs) {
+    return { type: 'in-progress', minutes: Math.ceil((endMs - nowMs) / 60000) }
+  }
+  if (nowMs < startMs) {
+    const diff = Math.round((startMs - nowMs) / 60000)
+    if (diff <= 60) return { type: 'starts-in', minutes: diff }
+  }
+  return undefined
+}
+
+const CONFETTI_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#22c55e', '#3b82f6']
+
+function ConfettiParticles() {
+  const particles = Array.from({ length: 12 }, (_, i) => ({
+    id: i,
+    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    left: `${8 + (i / 11) * 84}%`,
+    delay: `${(i * 0.07).toFixed(2)}s`,
+    size: i % 3 === 0 ? 8 : i % 3 === 1 ? 6 : 5,
+  }))
+
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
+      {particles.map(p => (
+        <div
+          key={p.id}
+          className="absolute top-1/2 rounded-full animate-confetti-fall"
+          style={{
+            left: p.left,
+            width: p.size,
+            height: p.size,
+            backgroundColor: p.color,
+            animationDelay: p.delay,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
 export function DayView() {
   const [date, setDate] = useState(todayString())
   const [formSlot, setFormSlot] = useState<TimeSlot | null>(null)
   const [timerTask, setTimerTask] = useState<Task | null>(null)
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null)
+  const [timeStatuses, setTimeStatuses] = useState<Record<string, { type: 'starts-in' | 'in-progress'; minutes: number }>>({})
+  const [showConfetti, setShowConfetti] = useState(false)
+  const prevAllDone = useRef(false)
   const { tasks, loadTasks, reorderTasks } = useTaskStore()
 
   useEffect(() => {
@@ -47,10 +103,16 @@ export function DayView() {
     return () => clearScheduledNotifications()
   }, [tasks, date])
 
-  // Update "now" indicator every 30 seconds
+  // Update "now" indicator and time statuses every 30 seconds
   const updateCurrentTask = useCallback(() => {
     const current = getCurrentTask(tasks, date)
     setCurrentTaskId(current?.id ?? null)
+    const statuses: Record<string, { type: 'starts-in' | 'in-progress'; minutes: number }> = {}
+    for (const t of tasks) {
+      const s = getTimeStatus(t, date)
+      if (s) statuses[t.id] = s
+    }
+    setTimeStatuses(statuses)
   }, [tasks, date])
 
   useEffect(() => {
@@ -58,6 +120,18 @@ export function DayView() {
     const interval = setInterval(updateCurrentTask, 30_000)
     return () => clearInterval(interval)
   }, [updateCurrentTask])
+
+  // Confetti when all tasks are completed
+  const completedCount = tasks.filter(t => t.completed).length
+  const allDone = tasks.length > 0 && completedCount === tasks.length
+
+  useEffect(() => {
+    if (allDone && !prevAllDone.current) {
+      setShowConfetti(true)
+      setTimeout(() => setShowConfetti(false), 1000)
+    }
+    prevAllDone.current = allDone
+  }, [allDone])
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
@@ -71,10 +145,19 @@ export function DayView() {
   const goPrev = () => setDate(format(subDays(new Date(date), 1), 'yyyy-MM-dd'))
   const goNext = () => setDate(format(addDays(new Date(date), 1), 'yyyy-MM-dd'))
 
-  const completedCount = tasks.filter(t => t.completed).length
   const isToday = date === todayString()
-  const allDone = tasks.length > 0 && completedCount === tasks.length
   const progressPercent = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0
+
+  // Week strip
+  const weekStart = startOfWeek(new Date(date), { weekStartsOn: 1 })
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = addDays(weekStart, i)
+    return {
+      dateStr: format(d, 'yyyy-MM-dd'),
+      dayLabel: format(d, 'EEE', { locale: nb }),
+      dayNum: format(d, 'd'),
+    }
+  })
 
   return (
     <div className="max-w-lg mx-auto px-4 pb-24">
@@ -83,8 +166,32 @@ export function DayView() {
         <AiPlanner date={date} />
       </div>
 
+      {/* Week strip */}
+      <div className="flex gap-1 py-4">
+        {weekDays.map(({ dateStr, dayLabel, dayNum }) => {
+          const isSelected = dateStr === date
+          const isDayToday = dateStr === todayString()
+          return (
+            <button
+              key={dateStr}
+              onClick={() => setDate(dateStr)}
+              className={`flex-1 flex flex-col items-center py-2 rounded-xl transition-all duration-200 ${
+                isSelected
+                  ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/25'
+                  : isDayToday
+                    ? 'bg-indigo-500/10 text-indigo-500'
+                    : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'
+              }`}
+            >
+              <span className="text-[10px] font-semibold uppercase tracking-wide">{dayLabel}</span>
+              <span className={`text-sm font-bold mt-0.5 ${isSelected ? 'text-white' : ''}`}>{dayNum}</span>
+            </button>
+          )
+        })}
+      </div>
+
       {/* Date navigation */}
-      <div className="flex items-center justify-between py-5">
+      <div className="flex items-center justify-between pb-4">
         <button
           onClick={goPrev}
           className="p-2.5 rounded-xl glass hover:bg-white/80 dark:hover:bg-white/5 transition-all duration-200 min-w-[48px] min-h-[48px] flex items-center justify-center active:scale-90"
@@ -116,12 +223,13 @@ export function DayView() {
 
       {/* Progress */}
       {tasks.length > 0 && (
-        <div className="mb-5 glass rounded-2xl p-4 animate-fade-in">
+        <div className="mb-5 glass rounded-2xl p-4 animate-fade-in relative">
+          {showConfetti && <ConfettiParticles />}
           <div className="flex justify-between items-center mb-2">
             <div className="flex items-center gap-2">
               {allDone && <Trophy size={16} className="text-amber-500" />}
               <span className="text-sm font-semibold">
-                {allDone ? 'Alt fullført!' : `${completedCount} av ${tasks.length}`}
+                {allDone ? 'Alt fullført! 🎉' : `${completedCount} av ${tasks.length}`}
               </span>
             </div>
             <span className="text-sm font-bold text-indigo-500">{progressPercent}%</span>
@@ -181,15 +289,29 @@ export function DayView() {
                       key={task.id}
                       task={task}
                       isNow={task.id === currentTaskId}
+                      timeStatus={timeStatuses[task.id]}
                       onStartTimer={setTimerTask}
                     />
                   ))
                 ) : (
                   <button
                     onClick={() => setFormSlot(slot.key)}
-                    className="w-full rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 p-4 text-center text-sm text-gray-300 dark:text-gray-600 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-400 transition-all active:scale-[0.98]"
+                    className="w-full rounded-2xl border-2 border-dashed p-4 text-center text-sm transition-all active:scale-[0.98] group"
+                    style={{
+                      borderColor: slot.color + '30',
+                      color: slot.color + '60',
+                    }}
+                    onMouseEnter={e => {
+                      ;(e.currentTarget as HTMLButtonElement).style.borderColor = slot.color + '60'
+                      ;(e.currentTarget as HTMLButtonElement).style.color = slot.color + 'aa'
+                    }}
+                    onMouseLeave={e => {
+                      ;(e.currentTarget as HTMLButtonElement).style.borderColor = slot.color + '30'
+                      ;(e.currentTarget as HTMLButtonElement).style.color = slot.color + '60'
+                    }}
                   >
-                    Trykk for å legge til {slot.emoji}
+                    <span className="text-lg mb-1 block">{slot.emoji}</span>
+                    <span className="font-medium">Legg til {slot.label.toLowerCase()}-aktivitet</span>
                   </button>
                 )}
               </div>
@@ -205,7 +327,11 @@ export function DayView() {
           onClose={() => setFormSlot(null)}
         />
       )}
-      {timerTask && <FocusTimer task={timerTask} onClose={() => setTimerTask(null)} />}
+      {timerTask && (
+        timerTask.pomodoro
+          ? <PomodoroTimer task={timerTask} onClose={() => setTimerTask(null)} />
+          : <FocusTimer task={timerTask} onClose={() => setTimerTask(null)} />
+      )}
     </div>
   )
 }

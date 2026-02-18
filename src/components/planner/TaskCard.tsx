@@ -11,10 +11,11 @@ import { ConfirmDialog } from '../ui/ConfirmDialog'
 interface TaskCardProps {
   task: Task
   isNow?: boolean
+  timeStatus?: { type: 'starts-in' | 'in-progress'; minutes: number }
   onStartTimer: (task: Task) => void
 }
 
-export function TaskCard({ task, isNow, onStartTimer }: TaskCardProps) {
+export function TaskCard({ task, isNow, timeStatus, onStartTimer }: TaskCardProps) {
   const { toggleComplete, deleteTask, updateTask } = useTaskStore()
   const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -98,16 +99,39 @@ export function TaskCard({ task, isNow, onStartTimer }: TaskCardProps) {
 
           {/* Content */}
           <div className="flex-1 min-w-0 ml-1">
-            <div className="flex items-center gap-2">
+            {/* Title row */}
+            <div className="flex items-center gap-1.5">
               <span className="text-lg drop-shadow-sm">{task.emoji}</span>
-              <span className={`font-semibold text-[15px] truncate ${task.completed ? 'line-through text-gray-400' : ''}`}>
+              <span className={`font-semibold text-[15px] truncate flex-1 ${task.completed ? 'line-through text-gray-400' : ''}`}>
                 {task.title}
               </span>
+              {task.subtasks.length > 0 && (
+                <button
+                  onClick={() => setExpanded(!expanded)}
+                  className="p-1 rounded-lg text-gray-400 hover:text-gray-600 transition-all duration-200 flex-shrink-0"
+                  aria-label={expanded ? 'Skjul delsteg' : 'Vis delsteg'}
+                >
+                  {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                </button>
+              )}
+              {task.pomodoro && <span className="text-[13px] flex-shrink-0">🍅</span>}
             </div>
-            <div className="flex items-center gap-2 mt-1">
+
+            {/* Meta row */}
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               {isNow && !task.completed && (
                 <span className="text-[11px] font-bold text-white px-2 py-0.5 rounded-full animate-pulse-soft" style={{ backgroundColor: task.color }}>
                   Nå
+                </span>
+              )}
+              {!task.completed && timeStatus && timeStatus.type === 'starts-in' && timeStatus.minutes <= 30 && (
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: hexToRgba(task.color, 0.12), color: task.color }}>
+                  om {timeStatus.minutes} min
+                </span>
+              )}
+              {!task.completed && timeStatus && timeStatus.type === 'in-progress' && (
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500">
+                  {timeStatus.minutes} min igjen
                 </span>
               )}
               <span
@@ -123,7 +147,7 @@ export function TaskCard({ task, isNow, onStartTimer }: TaskCardProps) {
             </div>
           </div>
 
-          {/* Actions */}
+          {/* Actions: play + delete only */}
           <div className="flex items-center gap-0.5">
             {!task.completed && (
               <button
@@ -133,15 +157,6 @@ export function TaskCard({ task, isNow, onStartTimer }: TaskCardProps) {
                 aria-label="Start tidtaker"
               >
                 <Play size={18} fill="currentColor" />
-              </button>
-            )}
-            {task.subtasks.length > 0 && (
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className="p-2 rounded-xl text-gray-400 hover:text-gray-600 transition-all duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                aria-label={expanded ? 'Skjul delsteg' : 'Vis delsteg'}
-              >
-                {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
               </button>
             )}
             <button
