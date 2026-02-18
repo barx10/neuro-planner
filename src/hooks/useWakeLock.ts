@@ -6,9 +6,16 @@ export function useWakeLock() {
   useEffect(() => {
     if (!('wakeLock' in navigator)) return
 
+    let cancelled = false
+
     async function acquire() {
       try {
-        wakeLockRef.current = await navigator.wakeLock.request('screen')
+        const sentinel = await navigator.wakeLock.request('screen')
+        if (cancelled) {
+          sentinel.release()
+        } else {
+          wakeLockRef.current = sentinel
+        }
       } catch {
         // Feiler stille — f.eks. batteri lavt eller ikke støttet
       }
@@ -24,6 +31,7 @@ export function useWakeLock() {
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
+      cancelled = true
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       wakeLockRef.current?.release()
       wakeLockRef.current = null
