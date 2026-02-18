@@ -4,6 +4,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@property --orbit-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
 @layer base {
   * {
     -webkit-tap-highlight-color: transparent;
@@ -68,6 +74,34 @@
       text-shadow: 0 0 18px rgba(99, 102, 241, 0.8), 0 0 40px rgba(168, 85, 247, 0.6), 0 0 60px rgba(236, 72, 153, 0.35);
       filter: brightness(1.35);
     }
+  }
+
+  .orbit-wrapper {
+    position: relative;
+    display: inline-block;
+  }
+
+  .orbit-wrapper::before {
+    content: '';
+    position: absolute;
+    inset: -4px -12px;
+    border-radius: 16px;
+    background: conic-gradient(
+      from var(--orbit-angle),
+      transparent 35%,
+      rgba(99, 102, 241, 0.2) 45%,
+      rgba(168, 85, 247, 0.75) 60%,
+      rgba(236, 72, 153, 0.85) 70%,
+      rgba(99, 102, 241, 0.45) 80%,
+      transparent 90%
+    );
+    filter: blur(7px);
+    animation: orbit-rotate 5s linear infinite;
+    z-index: -1;
+  }
+
+  @keyframes orbit-rotate {
+    to { --orbit-angle: 360deg; }
   }
 
   .btn-primary {
