@@ -4,7 +4,6 @@ import { useSettingsStore } from '../../store/settingsStore'
 import { db } from '../../db/database'
 import { ConfirmDialog } from './ConfirmDialog'
 import { requestNotificationPermission } from '../../hooks/useNotifications'
-import { subscribeToPush } from '../../utils/pushSubscription'
 import type { AiProvider, AiModel } from '../../types'
 
 interface SettingsPanelProps {
@@ -54,12 +53,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
   const handleEnableNotifications = async () => {
     const granted = await requestNotificationPermission()
-    if (granted) {
-      await subscribeToPush()
-      setNotifStatus('granted')
-    } else {
-      setNotifStatus(Notification.permission)
-    }
+    setNotifStatus(granted ? 'granted' : Notification.permission)
   }
 
   const handleClearData = async () => {

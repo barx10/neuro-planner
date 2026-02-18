@@ -7,7 +7,6 @@ import { useTaskStore } from '../../store/taskStore'
 import type { Task } from '../../types'
 import { formatDate, todayString } from '../../utils/timeHelpers'
 import { scheduleNotificationsForTasks, getCurrentTask, clearScheduledNotifications } from '../../hooks/useNotifications'
-import { syncScheduleToServer } from '../../hooks/usePushSync'
 import { TaskCard } from './TaskCard'
 import { TaskForm } from './TaskForm'
 import { FocusTimer } from './FocusTimer'
@@ -44,7 +43,6 @@ export function DayView() {
     const isToday = date === todayString()
     if (isToday && tasks.length > 0) {
       scheduleNotificationsForTasks(tasks, date)
-      syncScheduleToServer(tasks, date)
     }
     return () => clearScheduledNotifications()
   }, [tasks, date])

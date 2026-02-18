@@ -42,27 +42,18 @@ export function FocusTimer({ task, onClose }: FocusTimerProps) {
   const completion = useMemo(() => COMPLETIONS[Math.floor(Math.random() * COMPLETIONS.length)], [])
 
   const elapsed = totalSeconds - remaining
-  const fiveMinBefore = totalSeconds - 5 * 60
 
   useEffect(() => {
     if (!running || remaining === 0) return
 
-    // After 5 minutes of work
-    if (elapsed >= 5 * 60 && !shownAt.has('5min') && totalSeconds > 5 * 60) {
+    // Every 5 minutes of elapsed work
+    const intervalIndex = Math.floor(elapsed / (5 * 60))
+    const intervalKey = `interval-${intervalIndex}`
+    if (intervalIndex > 0 && !shownAt.has(intervalKey)) {
       const msg = ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)]
       setEncouragement(msg)
       setEncourageVisible(true)
-      setShownAt(prev => new Set(prev).add('5min'))
-      notifyEncouragement(msg.emoji, msg.text)
-      setTimeout(() => setEncourageVisible(false), 4000)
-    }
-
-    // 5 minutes before end (only if task is longer than 10 min so it doesn't overlap)
-    if (fiveMinBefore > 5 * 60 && remaining <= 5 * 60 && remaining > 0 && !shownAt.has('5before')) {
-      const msg = ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)]
-      setEncouragement(msg)
-      setEncourageVisible(true)
-      setShownAt(prev => new Set(prev).add('5before'))
+      setShownAt(prev => new Set(prev).add(intervalKey))
       notifyEncouragement(msg.emoji, msg.text)
       setTimeout(() => setEncourageVisible(false), 4000)
     }
@@ -72,7 +63,7 @@ export function FocusTimer({ task, onClose }: FocusTimerProps) {
       setShownAt(prev => new Set(prev).add('done'))
       notifyCompletion(task.emoji, task.title, completion.sub)
     }
-  }, [running, remaining, elapsed, fiveMinBefore, totalSeconds, shownAt, task, completion])
+  }, [running, remaining, elapsed, shownAt, task, completion])
 
   const radius = 90
   const circumference = 2 * Math.PI * radius

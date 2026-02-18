@@ -13,14 +13,12 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@upstash/redis": "^1.36.2",
     "date-fns": "^4.1.0",
     "dexie": "^4.3.0",
     "lucide-react": "^0.564.0",
     "nanoid": "^5.1.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "web-push": "^3.6.7",
     "zustand": "^5.0.11"
   },
   "devDependencies": {

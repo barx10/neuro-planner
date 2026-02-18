@@ -10,7 +10,6 @@ import { SettingsPanel } from './components/ui/SettingsPanel'
 import { SplashScreen } from './components/ui/SplashScreen'
 import { useSettingsStore } from './store/settingsStore'
 import { requestNotificationPermission } from './hooks/useNotifications'
-import { subscribeToPush } from './utils/pushSubscription'
 import { todayString } from './utils/timeHelpers'
 import { db } from './db/database'
 import type { MoodEntry } from './types'
@@ -27,9 +26,7 @@ function App() {
 
   useEffect(() => {
     loadSettings()
-    requestNotificationPermission().then((granted) => {
-      if (granted) subscribeToPush()
-    })
+    requestNotificationPermission()
     db.moods.get(todayString()).then(entry => {
       if (entry) setMood(entry)
     })
