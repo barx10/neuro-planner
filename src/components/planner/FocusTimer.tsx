@@ -44,10 +44,19 @@ export function FocusTimer({ task, onClose }: FocusTimerProps) {
   const elapsed = totalSeconds - remaining
 
   useEffect(() => {
-    if (!running || remaining === 0) return
+    // Completion — must check before the running guard since timer stops when done
+    if (remaining === 0) {
+      if (!shownAt.has('done')) {
+        setShownAt(prev => new Set(prev).add('done'))
+        notifyCompletion(task.emoji, task.title, completion.sub)
+      }
+      return
+    }
 
-    // Every 5 minutes of elapsed work
-    const intervalIndex = Math.floor(elapsed / (5 * 60))
+    if (!running) return
+
+    // Every 10 minutes of elapsed work
+    const intervalIndex = Math.floor(elapsed / (10 * 60))
     const intervalKey = `interval-${intervalIndex}`
     if (intervalIndex > 0 && !shownAt.has(intervalKey)) {
       const msg = ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)]
@@ -56,12 +65,6 @@ export function FocusTimer({ task, onClose }: FocusTimerProps) {
       setShownAt(prev => new Set(prev).add(intervalKey))
       notifyEncouragement(msg.emoji, msg.text)
       setTimeout(() => setEncourageVisible(false), 4000)
-    }
-
-    // Completion
-    if (remaining === 0 && !shownAt.has('done')) {
-      setShownAt(prev => new Set(prev).add('done'))
-      notifyCompletion(task.emoji, task.title, completion.sub)
     }
   }, [running, remaining, elapsed, shownAt, task, completion])
 
