@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { X, Play, Pause, RotateCcw } from 'lucide-react'
 import type { Task } from '../../types'
 import { useTimer } from '../../hooks/useTimer'
+import { useWakeLock } from '../../hooks/useWakeLock'
 import { formatSeconds } from '../../utils/timeHelpers'
 import { hexToRgba } from '../../utils/colorHelpers'
 import { notifyEncouragement, notifyCompletion } from '../../hooks/useNotifications'
@@ -31,6 +32,7 @@ interface FocusTimerProps {
 }
 
 export function FocusTimer({ task, onClose }: FocusTimerProps) {
+  useWakeLock()
   const totalSeconds = task.durationMinutes * 60
   const { remaining, running, progress, start, pause, reset } = useTimer(totalSeconds)
 
