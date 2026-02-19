@@ -16,6 +16,7 @@ export default {
         'pulse-soft': 'pulseSoft 2s infinite ease-in-out',
         'confetti': 'confetti 0.6s ease-out',
         'bounce-in': 'bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+        'confetti-fall': 'confettiFall 0.9s ease-out forwards',
       },
       keyframes: {
         fadeIn: {
@@ -52,6 +53,11 @@ export default {
           '50%': { transform: 'scale(1.05)' },
           '70%': { transform: 'scale(0.9)' },
           '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        confettiFall: {
+          '0%':   { transform: 'translateY(-8px) scale(0) rotate(0deg)',   opacity: '1' },
+          '60%':  { opacity: '1' },
+          '100%': { transform: 'translateY(70px) scale(1) rotate(180deg)', opacity: '0' },
         },
       },
     },

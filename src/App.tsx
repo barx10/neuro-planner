@@ -95,14 +95,20 @@ function App() {
             <button
               key={tab.key}
               onClick={() => setView(tab.key)}
-              className={`flex-1 flex flex-col items-center py-3 transition-all duration-200 min-h-[56px] rounded-2xl ${
+              className={`flex-1 flex flex-col items-center py-2.5 transition-all duration-200 min-h-[56px] rounded-2xl relative ${
                 view === tab.key
-                  ? 'text-indigo-500 bg-indigo-500/10'
+                  ? 'text-indigo-500'
                   : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
               }`}
             >
-              <tab.icon size={22} />
+              <tab.icon
+                size={22}
+                className={`transition-transform duration-200 ${view === tab.key ? 'scale-110' : ''}`}
+              />
               <span className="text-[11px] mt-1 font-semibold">{tab.label}</span>
+              <span className={`absolute bottom-1.5 left-1/2 -translate-x-1/2 h-1 rounded-full bg-indigo-500 transition-all duration-300 ${
+                view === tab.key ? 'w-4 opacity-100' : 'w-0 opacity-0'
+              }`} />
             </button>
           ))}
         </div>

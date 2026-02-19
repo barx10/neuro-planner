@@ -20,6 +20,7 @@ export function TaskForm({ date, defaultTime, onClose }: TaskFormProps) {
   const [color, setColor] = useState(TASK_COLORS[4])
   const [startTime, setStartTime] = useState(defaultTime ?? '09:00')
   const [duration, setDuration] = useState(30)
+  const [pomodoro, setPomodoro] = useState(false)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -45,6 +46,7 @@ export function TaskForm({ date, defaultTime, onClose }: TaskFormProps) {
       completed: false,
       subtasks: [],
       order: tasks.length,
+      pomodoro: duration >= 25 ? pomodoro : undefined,
     })
     setSaving(false)
     onClose()
@@ -137,6 +139,31 @@ export function TaskForm({ date, defaultTime, onClose }: TaskFormProps) {
               </select>
             </div>
           </div>
+
+          {duration >= 25 && (
+            <div className="flex items-center justify-between py-1">
+              <div className="flex items-center gap-2.5">
+                <span className="text-xl">🍅</span>
+                <div>
+                  <p className="text-sm font-semibold">Pomodoro-modus</p>
+                  <p className="text-xs text-gray-400">25 min fokus + pause</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPomodoro(p => !p)}
+                role="switch"
+                aria-checked={pomodoro}
+                className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+                  pomodoro ? 'bg-indigo-500' : 'bg-gray-200 dark:bg-gray-600'
+                }`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                  pomodoro ? 'translate-x-5' : 'translate-x-0'
+                }`} />
+              </button>
+            </div>
+          )}
 
           <button
             type="submit"
