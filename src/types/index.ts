@@ -11,6 +11,7 @@ export interface Task {
   routineId?: string
   notes?: string
   order: number
+  pomodoro?: boolean
 }
 
 export interface Subtask {
