@@ -7,6 +7,7 @@ import { ProgressView } from './components/planner/ProgressView'
 import { AboutView } from './components/planner/AboutView'
 import { MoodSelector } from './components/ui/MoodSelector'
 import { SettingsPanel } from './components/ui/SettingsPanel'
+import { HelpPanel } from './components/ui/HelpPanel'
 import { SplashScreen } from './components/ui/SplashScreen'
 import { useSettingsStore } from './store/settingsStore'
 import { requestNotificationPermission } from './hooks/useNotifications'
@@ -20,6 +21,7 @@ function App() {
   const [showSplash, setShowSplash] = useState(true)
   const [view, setView] = useState<View>('home')
   const [showSettings, setShowSettings] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   const [mood, setMood] = useState<MoodEntry | null>(null)
   const { loadSettings } = useSettingsStore()
   const hideSplash = useCallback(() => setShowSplash(false), [])
@@ -55,6 +57,13 @@ function App() {
             </h1>
           </div>
           <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowHelp(true)}
+              className="p-2.5 rounded-xl hover:bg-gray-500/10 text-gray-400 transition-all duration-200 min-w-[48px] min-h-[48px] flex items-center justify-center active:scale-90 text-lg font-bold"
+              aria-label="Hjelp"
+            >
+              ?
+            </button>
             <button
               onClick={() => setShowSettings(true)}
               className="p-2.5 rounded-xl hover:bg-gray-500/10 text-gray-400 transition-all duration-200 min-w-[48px] min-h-[48px] flex items-center justify-center active:scale-90"
@@ -116,6 +125,7 @@ function App() {
 
       {/* Modals */}
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
+      {showHelp && <HelpPanel onClose={() => setShowHelp(false)} />}
     </div>
   )
 }
