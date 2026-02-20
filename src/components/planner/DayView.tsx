@@ -328,7 +328,7 @@ export function DayView() {
         />
       )}
       {timerTask && (
-        timerTask.pomodoro
+        timerTask.durationMinutes >= 25
           ? <PomodoroTimer task={timerTask} onClose={() => setTimerTask(null)} />
           : <FocusTimer task={timerTask} onClose={() => setTimerTask(null)} />
       )}

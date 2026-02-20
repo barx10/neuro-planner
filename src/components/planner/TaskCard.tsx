@@ -114,7 +114,7 @@ export function TaskCard({ task, isNow, timeStatus, onStartTimer }: TaskCardProp
                   {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                 </button>
               )}
-              {task.pomodoro && <span className="text-[13px] flex-shrink-0">🍅</span>}
+              {task.durationMinutes >= 25 && <span className="text-[13px] flex-shrink-0">🍅</span>}
             </div>
 
             {/* Meta row */}
