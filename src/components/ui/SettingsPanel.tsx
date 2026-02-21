@@ -82,10 +82,38 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   }
 
   const updateDayPeriod = (day: WeekDay, field: keyof BlockedPeriod, value: string) => {
+    const current = schedule[day]!
+    let finalValue = value
+    if (field === 'end') {
+      const start = current.start
+      if (value <= start) {
+        const [h, m] = start.split(':').map(Number)
+        const total = h * 60 + m + 30
+        const newH = Math.min(Math.floor(total / 60), 23)
+        const newM = total % 60
+        finalValue = `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`
+      }
+    } else if (field === 'start') {
+      const end = current.end
+      if (value >= end) {
+        const [h, m] = value.split(':').map(Number)
+        const total = h * 60 + m + 30
+        const newH = Math.min(Math.floor(total / 60), 23)
+        const newM = total % 60
+        const newEnd = `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`
+        updateSettings({
+          weeklySchedule: {
+            ...schedule,
+            [day]: { ...current, start: value, end: newEnd }
+          }
+        })
+        return
+      }
+    }
     updateSettings({
       weeklySchedule: {
         ...schedule,
-        [day]: { ...schedule[day]!, [field]: value }
+        [day]: { ...current, [field]: finalValue }
       }
     })
   }

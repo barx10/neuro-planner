@@ -168,6 +168,10 @@ export function DayView() {
   const [showOverrideMenu, setShowOverrideMenu] = useState(false)
 
   useEffect(() => {
+    setShowOverrideMenu(false)
+  }, [date])
+
+  useEffect(() => {
     loadTasks(date)
   }, [date, loadTasks])
 
