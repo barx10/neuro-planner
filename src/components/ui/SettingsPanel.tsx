@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Trash2, Eye, EyeOff, Bell, BellOff } from 'lucide-react'
+import { X, Trash2, Eye, EyeOff, Bell, BellOff, Plus } from 'lucide-react'
 import { useSettingsStore } from '../../store/settingsStore'
 import { db } from '../../db/database'
 import { ConfirmDialog } from './ConfirmDialog'
@@ -64,57 +64,49 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
   const schedule = settings.weeklySchedule ?? {}
 
-  const toggleDay = (day: WeekDay) => {
-    if (schedule[day]) {
-      const next = { ...schedule }
-      delete next[day]
-      updateSettings({ weeklySchedule: next })
-      if (expandedDay === day) setExpandedDay(null)
-    } else {
-      updateSettings({
-        weeklySchedule: {
-          ...schedule,
-          [day]: { start: '08:00', end: '16:00', label: 'Jobb/Skole' }
-        }
-      })
-      setExpandedDay(day)
-    }
+  const addDay = (day: WeekDay) => {
+    updateSettings({
+      weeklySchedule: {
+        ...schedule,
+        [day]: { start: '08:00', end: '16:00', label: 'Jobb/Skole' }
+      }
+    })
+    setExpandedDay(day)
+  }
+
+  const removeDay = (day: WeekDay) => {
+    const next = { ...schedule }
+    delete next[day]
+    updateSettings({ weeklySchedule: next })
+    if (expandedDay === day) setExpandedDay(null)
+  }
+
+  function addMinutesToTime(time: string, minutes: number): string {
+    const [h, m] = time.split(':').map(Number)
+    if (isNaN(h) || isNaN(m)) return '16:00'
+    const total = h * 60 + m + minutes
+    const newH = Math.min(Math.floor(total / 60), 23)
+    const newM = total % 60
+    return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`
   }
 
   const updateDayPeriod = (day: WeekDay, field: keyof BlockedPeriod, value: string) => {
     const current = schedule[day]!
+    // Ignorer tomme tidsverdier — kan skje om brukeren tømmer feltet
+    if ((field === 'start' || field === 'end') && !value) return
+
     let finalValue = value
-    if (field === 'end') {
-      const start = current.start
-      if (value <= start) {
-        const [h, m] = start.split(':').map(Number)
-        const total = h * 60 + m + 30
-        const newH = Math.min(Math.floor(total / 60), 23)
-        const newM = total % 60
-        finalValue = `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`
-      }
-    } else if (field === 'start') {
-      const end = current.end
-      if (value >= end) {
-        const [h, m] = value.split(':').map(Number)
-        const total = h * 60 + m + 30
-        const newH = Math.min(Math.floor(total / 60), 23)
-        const newM = total % 60
-        const newEnd = `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`
-        updateSettings({
-          weeklySchedule: {
-            ...schedule,
-            [day]: { ...current, start: value, end: newEnd }
-          }
-        })
-        return
-      }
+    if (field === 'end' && value <= current.start) {
+      finalValue = addMinutesToTime(current.start, 30)
+    } else if (field === 'start' && value >= current.end) {
+      const newEnd = addMinutesToTime(value, 30)
+      updateSettings({
+        weeklySchedule: { ...schedule, [day]: { ...current, start: value, end: newEnd } }
+      })
+      return
     }
     updateSettings({
-      weeklySchedule: {
-        ...schedule,
-        [day]: { ...current, [field]: finalValue }
-      }
+      weeklySchedule: { ...schedule, [day]: { ...current, [field]: finalValue } }
     })
   }
 
@@ -264,31 +256,41 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
                 return (
                   <div key={key} className="rounded-2xl border-2 border-gray-100 dark:border-gray-700 overflow-hidden">
-                    <button
-                      onClick={() => toggleDay(key)}
-                      className={`w-full flex items-center gap-3 p-3.5 transition-all active:scale-[0.99] text-left ${
-                        isActive ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''
-                      }`}
-                    >
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 transition-all ${
-                        isActive
-                          ? 'bg-indigo-500 text-white'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-400'
+                    <div className={`flex items-center gap-3 p-3.5 transition-all ${isActive ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}>
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
+                        isActive ? 'bg-indigo-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-400'
                       }`}>
                         {short}
                       </div>
-                      <span className={`font-semibold text-sm flex-1 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : ''}`}>
+                      <span className={`font-semibold text-sm flex-1 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'}`}>
                         {label}
                       </span>
-                      {isActive && period && (
+                      {isActive && period ? (
+                        <>
+                          <button
+                            onClick={() => setExpandedDay(isExpanded ? null : key)}
+                            className="text-[11px] text-indigo-500 font-semibold px-2 py-1 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-all min-h-[36px]"
+                          >
+                            {period.start}–{period.end}
+                          </button>
+                          <button
+                            onClick={() => removeDay(key)}
+                            className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all shrink-0"
+                            aria-label={`Fjern ${label}`}
+                          >
+                            <X size={14} />
+                          </button>
+                        </>
+                      ) : (
                         <button
-                          onClick={e => { e.stopPropagation(); setExpandedDay(isExpanded ? null : key) }}
-                          className="text-[11px] text-indigo-500 font-semibold px-2 py-1 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-all min-h-[36px]"
+                          onClick={() => addDay(key)}
+                          className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all shrink-0"
+                          aria-label={`Legg til ${label}`}
                         >
-                          {period.start}–{period.end}
+                          <Plus size={14} />
                         </button>
                       )}
-                    </button>
+                    </div>
 
                     {isActive && isExpanded && (
                       <div className="px-3.5 pb-3.5 space-y-2.5 animate-fade-in">

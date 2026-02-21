@@ -53,5 +53,8 @@ export function getBlockedPeriodForDate(
   const [year, month, day] = dateStr.split('-').map(Number)
   const date = new Date(year, month - 1, day)
   const weekday = WEEKDAY_MAP[date.getDay()]
-  return weeklySchedule[weekday] ?? null
+  const period = weeklySchedule[weekday] ?? null
+  // Valider at tidsverdier er gyldige HH:mm-strenger (ikke NaN fra gamle bugs)
+  if (period && (!/^\d{2}:\d{2}$/.test(period.start) || !/^\d{2}:\d{2}$/.test(period.end))) return null
+  return period
 }
