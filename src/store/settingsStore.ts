@@ -10,7 +10,8 @@ const DEFAULT_SETTINGS: UserSettings = {
   theme: 'auto',
   aiProvider: 'gemini',
   aiModel: 'gemini-2.5-flash',
-  apiKeys: { gemini: '', openai: '', anthropic: '' }
+  apiKeys: { gemini: '', openai: '', anthropic: '' },
+  weeklySchedule: {}
 }
 
 function applyTheme(theme: 'light' | 'dark' | 'auto') {

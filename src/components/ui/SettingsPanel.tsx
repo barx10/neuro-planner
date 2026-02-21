@@ -4,7 +4,7 @@ import { useSettingsStore } from '../../store/settingsStore'
 import { db } from '../../db/database'
 import { ConfirmDialog } from './ConfirmDialog'
 import { requestNotificationPermission } from '../../hooks/useNotifications'
-import type { AiProvider, AiModel } from '../../types'
+import type { AiProvider, AiModel, WeekDay, BlockedPeriod } from '../../types'
 
 interface SettingsPanelProps {
   onClose: () => void
@@ -43,6 +43,16 @@ const PROVIDERS: {
   },
 ]
 
+const WEEKDAYS: { key: WeekDay; label: string; short: string }[] = [
+  { key: 'mon', label: 'Mandag', short: 'Man' },
+  { key: 'tue', label: 'Tirsdag', short: 'Tir' },
+  { key: 'wed', label: 'Onsdag', short: 'Ons' },
+  { key: 'thu', label: 'Torsdag', short: 'Tor' },
+  { key: 'fri', label: 'Fredag', short: 'Fre' },
+  { key: 'sat', label: 'Lørdag', short: 'Lør' },
+  { key: 'sun', label: 'Søndag', short: 'Søn' },
+]
+
 export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const { settings, updateSettings } = useSettingsStore()
   const [showClearConfirm, setShowClearConfirm] = useState(false)
@@ -50,6 +60,35 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [notifStatus, setNotifStatus] = useState<string>(
     typeof Notification !== 'undefined' ? Notification.permission : 'unsupported'
   )
+  const [expandedDay, setExpandedDay] = useState<WeekDay | null>(null)
+
+  const schedule = settings.weeklySchedule ?? {}
+
+  const toggleDay = (day: WeekDay) => {
+    if (schedule[day]) {
+      const next = { ...schedule }
+      delete next[day]
+      updateSettings({ weeklySchedule: next })
+      if (expandedDay === day) setExpandedDay(null)
+    } else {
+      updateSettings({
+        weeklySchedule: {
+          ...schedule,
+          [day]: { start: '08:00', end: '16:00', label: 'Jobb/Skole' }
+        }
+      })
+      setExpandedDay(day)
+    }
+  }
+
+  const updateDayPeriod = (day: WeekDay, field: keyof BlockedPeriod, value: string) => {
+    updateSettings({
+      weeklySchedule: {
+        ...schedule,
+        [day]: { ...schedule[day]!, [field]: value }
+      }
+    })
+  }
 
   const handleEnableNotifications = async () => {
     const granted = await requestNotificationPermission()
@@ -179,6 +218,85 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             ) : (
               <p className="text-[11px] text-gray-400 mt-1.5 px-1">Nøkkelen lagres kun på din enhet</p>
             )}
+          </div>
+
+          {/* Ukeskjema */}
+          <div>
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">
+              Ukeskjema (Jobb/Skole)
+            </label>
+            <p className="text-[11px] text-gray-400 mb-3">
+              Merk dager du er opptatt — AI-en planlegger kun i fritiden.
+            </p>
+            <div className="space-y-2">
+              {WEEKDAYS.map(({ key, label, short }) => {
+                const period = schedule[key]
+                const isActive = !!period
+                const isExpanded = expandedDay === key
+
+                return (
+                  <div key={key} className="rounded-2xl border-2 border-gray-100 dark:border-gray-700 overflow-hidden">
+                    <button
+                      onClick={() => toggleDay(key)}
+                      className={`w-full flex items-center gap-3 p-3.5 transition-all active:scale-[0.99] text-left ${
+                        isActive ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 transition-all ${
+                        isActive
+                          ? 'bg-indigo-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-400'
+                      }`}>
+                        {short}
+                      </div>
+                      <span className={`font-semibold text-sm flex-1 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : ''}`}>
+                        {label}
+                      </span>
+                      {isActive && period && (
+                        <button
+                          onClick={e => { e.stopPropagation(); setExpandedDay(isExpanded ? null : key) }}
+                          className="text-[11px] text-indigo-500 font-semibold px-2 py-1 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-all min-h-[36px]"
+                        >
+                          {period.start}–{period.end}
+                        </button>
+                      )}
+                    </button>
+
+                    {isActive && isExpanded && (
+                      <div className="px-3.5 pb-3.5 space-y-2.5 animate-fade-in">
+                        <input
+                          type="text"
+                          value={period?.label ?? ''}
+                          onChange={e => updateDayPeriod(key, 'label', e.target.value)}
+                          placeholder="Navn (f.eks. Skole, Jobb)"
+                          className="w-full px-3 py-2 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <p className="text-[11px] text-gray-400 mb-1">Fra</p>
+                            <input
+                              type="time"
+                              value={period?.start ?? '08:00'}
+                              onChange={e => updateDayPeriod(key, 'start', e.target.value)}
+                              className="w-full px-3 py-2 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-[11px] text-gray-400 mb-1">Til</p>
+                            <input
+                              type="time"
+                              value={period?.end ?? '16:00'}
+                              onChange={e => updateDayPeriod(key, 'end', e.target.value)}
+                              className="w-full px-3 py-2 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
 
           {/* Theme */}
