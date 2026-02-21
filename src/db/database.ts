@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type { Task, Routine, MoodEntry, UserSettings, Activity } from '../types'
+import type { Task, Routine, MoodEntry, UserSettings, Activity, DayOverride } from '../types'
 
 export class PlannerDB extends Dexie {
   tasks!: Table<Task>
@@ -7,6 +7,7 @@ export class PlannerDB extends Dexie {
   moods!: Table<MoodEntry>
   settings!: Table<UserSettings>
   activities!: Table<Activity>
+  dayOverrides!: Table<DayOverride>
 
   constructor() {
     super('neuro-planner')
@@ -22,6 +23,14 @@ export class PlannerDB extends Dexie {
       moods: 'date',
       settings: 'name',
       activities: 'id, category'
+    })
+    this.version(3).stores({
+      tasks: 'id, date, routineId, completed',
+      routines: 'id',
+      moods: 'date',
+      settings: 'name',
+      activities: 'id, category',
+      dayOverrides: 'date'
     })
   }
 }
