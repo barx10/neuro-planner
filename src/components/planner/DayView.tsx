@@ -5,8 +5,10 @@ import { Plus, ChevronLeft, ChevronRight, Trophy, Sunrise, Sun, Moon } from 'luc
 import { format, addDays, subDays, startOfWeek } from 'date-fns'
 import { nb } from 'date-fns/locale'
 import { useTaskStore } from '../../store/taskStore'
-import type { Task } from '../../types'
-import { formatDate, todayString } from '../../utils/timeHelpers'
+import { useSettingsStore } from '../../store/settingsStore'
+import type { Task, BlockedPeriod } from '../../types'
+import { formatDate, todayString, getBlockedPeriodForDate } from '../../utils/timeHelpers'
+import { useDayOverride } from '../../hooks/useDayOverride'
 import { scheduleNotificationsForTasks, getCurrentTask, clearScheduledNotifications } from '../../hooks/useNotifications'
 import { TaskCard } from './TaskCard'
 import { TaskForm } from './TaskForm'
@@ -80,6 +82,77 @@ function ConfettiParticles() {
   )
 }
 
+function BlockedBanner({
+  period,
+  hasOverride,
+  onSetFree,
+  onClearOverride,
+  onToggleMenu,
+  showMenu,
+}: {
+  period: BlockedPeriod
+  hasOverride: boolean
+  onSetFree: () => void
+  onClearOverride: () => void
+  onToggleMenu: () => void
+  showMenu: boolean
+}) {
+  return (
+    <div className="mb-4 rounded-2xl overflow-hidden animate-fade-in">
+      <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-200 dark:border-amber-800/40">
+        <span className="text-lg">🏫</span>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-sm text-amber-800 dark:text-amber-200 truncate">
+            {period.label}
+          </p>
+          <p className="text-[11px] text-amber-600 dark:text-amber-400">
+            {period.start}–{period.end} · AI planlegger etter dette
+          </p>
+        </div>
+        <button
+          onClick={onToggleMenu}
+          className="px-3 py-1.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-all min-h-[36px]"
+        >
+          Endre
+        </button>
+      </div>
+      {showMenu && (
+        <div className="bg-white dark:bg-gray-800 border-2 border-t-0 border-amber-200 dark:border-amber-800/40 rounded-b-2xl p-3 space-y-2 animate-fade-in">
+          <button
+            onClick={() => { onSetFree(); onToggleMenu() }}
+            className="w-full py-2.5 px-3 rounded-xl text-sm font-semibold bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 transition-all text-left"
+          >
+            Ledig i dag (fri dag)
+          </button>
+          {hasOverride && (
+            <button
+              onClick={() => { onClearOverride(); onToggleMenu() }}
+              className="w-full py-2.5 px-3 rounded-xl text-sm font-semibold bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-100 transition-all text-left"
+            >
+              Tilbake til ukeplan
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FreeDayBanner({ onClearOverride }: { onClearOverride: () => void }) {
+  return (
+    <div className="mb-4 flex items-center gap-3 px-4 py-3 rounded-2xl bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800/40 animate-fade-in">
+      <span className="text-lg">🟢</span>
+      <p className="flex-1 text-sm font-semibold text-green-700 dark:text-green-300">Ledig i dag</p>
+      <button
+        onClick={onClearOverride}
+        className="text-xs text-green-600 dark:text-green-400 hover:underline min-h-[36px] px-2"
+      >
+        Angre
+      </button>
+    </div>
+  )
+}
+
 export function DayView() {
   const [date, setDate] = useState(todayString())
   const [formSlot, setFormSlot] = useState<TimeSlot | null>(null)
@@ -89,6 +162,10 @@ export function DayView() {
   const [showConfetti, setShowConfetti] = useState(false)
   const prevAllDone = useRef(false)
   const { tasks, loadTasks, reorderTasks } = useTaskStore()
+  const { settings } = useSettingsStore()
+  const { override, setDayFree, clearOverride } = useDayOverride(date)
+  const blockedPeriod = getBlockedPeriodForDate(date, settings.weeklySchedule, override)
+  const [showOverrideMenu, setShowOverrideMenu] = useState(false)
 
   useEffect(() => {
     loadTasks(date)
@@ -165,6 +242,23 @@ export function DayView() {
       <div className="pt-4">
         <AiPlanner date={date} />
       </div>
+
+      {/* Fri-dag banner (overstyrt til fri) */}
+      {override !== undefined && override.blockedPeriod === null && (
+        <FreeDayBanner onClearOverride={clearOverride} />
+      )}
+
+      {/* Opptatt-tid banner */}
+      {blockedPeriod && (
+        <BlockedBanner
+          period={blockedPeriod}
+          hasOverride={override !== undefined}
+          onSetFree={setDayFree}
+          onClearOverride={clearOverride}
+          onToggleMenu={() => setShowOverrideMenu(prev => !prev)}
+          showMenu={showOverrideMenu}
+        />
+      )}
 
       {/* Week strip */}
       <div className="flex gap-1 py-4">
