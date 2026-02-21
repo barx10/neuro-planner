@@ -52,6 +52,19 @@ export type AiModel =
   | 'gpt-5-mini'
   | 'claude-haiku-4-5-20250929'
 
+export interface BlockedPeriod {
+  start: string   // "HH:mm"
+  end: string     // "HH:mm"
+  label: string   // e.g. "Skole", "Jobb"
+}
+
+export type WeekDay = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
+
+export interface DayOverride {
+  date: string                    // "YYYY-MM-DD"
+  blockedPeriod: BlockedPeriod | null
+}
+
 export interface UserSettings {
   name: string
   soundEnabled: boolean
@@ -65,4 +78,5 @@ export interface UserSettings {
     openai: string
     anthropic: string
   }
+  weeklySchedule?: Partial<Record<WeekDay, BlockedPeriod>>
 }
