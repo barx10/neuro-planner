@@ -113,12 +113,19 @@ export interface DayPlanResult {
   analysis: string
 }
 
-export async function generateDayPlan(input: string): Promise<DayPlanResult> {
+export async function generateDayPlan(
+  input: string,
+  blockedPeriod?: { start: string; end: string; label: string } | null
+): Promise<DayPlanResult> {
   const now = new Date()
   const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 
+  const blockedInfo = blockedPeriod
+    ? `\nBRUKEREN ER OPPTATT (${blockedPeriod.label}) fra ${blockedPeriod.start} til ${blockedPeriod.end}. Ikke planlegg NOEN oppgaver i denne perioden. Legg alle oppgaver etter ${blockedPeriod.end}.`
+    : ''
+
   const result = await chat(
-    `Du er en varm og støttende dagplanlegger for folk med ADHD og autisme. Du vet at god struktur, realistiske mål og pusterom mellom aktiviteter gjør en stor forskjell.
+    `Du er en varm og støttende dagplanlegger for folk med ADHD og autisme. Du vet at god struktur, realistiske mål og pusterom mellom aktiviteter gjør en stor forskjell.${blockedInfo}
 Klokken er nå ${currentTime} i Norge. Planlegg kun fremover fra nå.
 
 Svar med et JSON-objekt med to felter:

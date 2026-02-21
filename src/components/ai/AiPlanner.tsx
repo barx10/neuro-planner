@@ -3,6 +3,9 @@ import { Sparkles, Loader2, Plus, Check, Clock, Pencil, Brain } from 'lucide-rea
 import { generateDayPlan } from '../../hooks/useAi'
 import { useTaskStore } from '../../store/taskStore'
 import { TASK_COLORS, hexToRgba } from '../../utils/colorHelpers'
+import { useSettingsStore } from '../../store/settingsStore'
+import { useDayOverride } from '../../hooks/useDayOverride'
+import { getBlockedPeriodForDate } from '../../utils/timeHelpers'
 
 interface AiPlannerProps {
   date: string
@@ -26,13 +29,16 @@ export function AiPlanner({ date }: AiPlannerProps) {
     setPlan(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item))
   }
   const { addTask, tasks } = useTaskStore()
+  const { settings } = useSettingsStore()
+  const { override } = useDayOverride(date)
+  const blockedPeriod = getBlockedPeriodForDate(date, settings.weeklySchedule, override)
 
   const handleGenerate = async () => {
     if (!input.trim()) return
     setLoading(true)
     setError('')
     try {
-      const result = await generateDayPlan(input)
+      const result = await generateDayPlan(input, blockedPeriod)
       setPlan(result.tasks)
       setAnalysis(result.analysis)
     } catch (err) {
