@@ -30,3 +30,28 @@ export function formatSeconds(seconds: number): string {
   const s = seconds % 60
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
+
+import type { BlockedPeriod, WeekDay } from '../types'
+
+export const WEEKDAY_MAP: Record<number, WeekDay> = {
+  1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat', 0: 'sun'
+}
+
+// Returnerer gjeldende opptatt-tid for en dato, hensyntar per-dag overstyring.
+// override === undefined betyr ingen overstyring finnes (bruk ukeplan).
+// override.blockedPeriod === null betyr eksplisitt fri dag.
+export function getBlockedPeriodForDate(
+  dateStr: string,
+  weeklySchedule: Partial<Record<WeekDay, BlockedPeriod>> | undefined,
+  override: { blockedPeriod: BlockedPeriod | null } | undefined
+): BlockedPeriod | null {
+  if (override !== undefined) return override.blockedPeriod
+
+  if (!weeklySchedule) return null
+
+  // Bruk lokal dato (unngå UTC midnatt-bug — dateStr er "YYYY-MM-DD")
+  const [year, month, day] = dateStr.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
+  const weekday = WEEKDAY_MAP[date.getDay()]
+  return weeklySchedule[weekday] ?? null
+}
