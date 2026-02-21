@@ -94,8 +94,8 @@ export function AiPlanner({ date }: AiPlannerProps) {
             value={input}
             onChange={e => setInput(e.target.value)}
             placeholder="Beskriv dagen din, så lager AI en plan..."
-            rows={2}
-            className="w-full px-3.5 py-3 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none text-sm placeholder:text-gray-300 dark:placeholder:text-gray-600"
+            rows={4}
+            className="w-full px-3.5 py-3 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-y text-sm placeholder:text-gray-300 dark:placeholder:text-gray-600"
           />
           <button
             onClick={handleGenerate}
