@@ -78,5 +78,6 @@ export interface UserSettings {
     openai: string
     anthropic: string
   }
+  rememberKeys: boolean
   weeklySchedule?: Partial<Record<WeekDay, BlockedPeriod>>
 }

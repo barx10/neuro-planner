@@ -59,6 +59,20 @@ Kortere oppgaver (under 25 min) bruker en enkel nedtellingstidtaker.`,
 Du bruker din egen API-nøkkel (BYOK — Bring Your Own Key). Nøkkelen lagres kun lokalt på din enhet og sendes aldri til Neurominder sine servere. Konfigurer under ⚙️ Innstillinger.`,
   },
   {
+    emoji: '🔒',
+    title: 'Sikkerhet og API-nøkler',
+    content: `Neurominder bruker BYOK (Bring Your Own Key) — du bruker din egen API-nøkkel for AI-funksjoner. Slik holder vi den trygg:
+
+• Nøkkelen lagres kun lokalt på din enhet (i nettleserens database)
+• Den sendes aldri til Neurominder sine servere
+• API-kall går direkte fra din enhet til AI-leverandøren (Google, OpenAI eller Anthropic)
+• Du kan slå av "Husk nøkkel" i innstillingene — da forsvinner den når du lukker appen
+
+For ekstra sikkerhet: Installer Neurominder som app på hjemskjermen. Da kjører den i et eget vindu uten adresselinje eller DevTools, og data er sandboxet — omtrent som en vanlig app.
+
+Neurominder har også sikkerhetspolicyer (CSP) som hindrer uautoriserte scripts fra å kjøre på siden.`,
+  },
+  {
     emoji: '🔔',
     title: 'Push-varsler',
     content: `Neurominder kan sende deg påminnelser når en oppgave skal starte. Varsler fungerer selv om du ikke har appen åpen.

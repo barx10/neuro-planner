@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Trash2, Eye, EyeOff, Bell, BellOff, Plus } from 'lucide-react'
+import { X, Trash2, Eye, EyeOff, Bell, BellOff, Plus, Shield } from 'lucide-react'
 import { useSettingsStore } from '../../store/settingsStore'
 import { db } from '../../db/database'
 import { ConfirmDialog } from './ConfirmDialog'
@@ -238,6 +238,36 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             ) : (
               <p className="text-[11px] text-gray-400 mt-1.5 px-1">Nøkkelen lagres kun på din enhet</p>
             )}
+
+            {/* Remember key toggle */}
+            <button
+              onClick={() => updateSettings({ rememberKeys: !settings.rememberKeys })}
+              className="w-full flex items-center gap-3 mt-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-900 transition-all active:scale-[0.98]"
+            >
+              <div className={`w-10 h-6 rounded-full relative transition-colors duration-200 ${
+                settings.rememberKeys ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'
+              }`}>
+                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
+                  settings.rememberKeys ? 'translate-x-5' : 'translate-x-1'
+                }`} />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-semibold">Husk nøkkel mellom økter</p>
+                <p className="text-[11px] text-gray-400">
+                  {settings.rememberKeys
+                    ? 'Nøkkelen lagres permanent på enheten'
+                    : 'Nøkkelen forsvinner når du lukker appen'}
+                </p>
+              </div>
+            </button>
+
+            {/* Security info */}
+            <div className="flex items-start gap-2.5 mt-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30">
+              <Shield size={16} className="text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-300 leading-relaxed">
+                Nøkkelen lagres kun på din enhet og sendes direkte til {currentProvider.label}. Neurominder ser eller lagrer aldri nøkkelen din.
+              </p>
+            </div>
           </div>
 
           {/* Ukeskjema */}

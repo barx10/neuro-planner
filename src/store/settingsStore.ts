@@ -11,6 +11,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   aiProvider: 'gemini',
   aiModel: 'gemini-2.5-flash',
   apiKeys: { gemini: '', openai: '', anthropic: '' },
+  rememberKeys: true,
   weeklySchedule: {}
 }
 
@@ -47,8 +48,22 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
   updateSettings: async (changes) => {
     const updated = { ...get().settings, ...changes }
-    await db.settings.put(updated)
     set({ settings: updated })
+
+    // When rememberKeys is off, strip apiKeys before writing to IndexedDB
+    const toStore = updated.rememberKeys
+      ? updated
+      : { ...updated, apiKeys: { gemini: '', openai: '', anthropic: '' } }
+    await db.settings.put(toStore)
+
+    // If user just toggled rememberKeys off, clear persisted keys immediately
+    if (changes.rememberKeys === false) {
+      const current = await db.settings.get('user')
+      if (current) {
+        await db.settings.put({ ...current, apiKeys: { gemini: '', openai: '', anthropic: '' }, rememberKeys: false })
+      }
+    }
+
     if (changes.theme) applyTheme(changes.theme)
   }
 }))
