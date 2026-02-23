@@ -119,6 +119,7 @@ export async function generateDayPlan(
 ): Promise<DayPlanResult> {
   const now = new Date()
   const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  const { latestTaskTime } = getSettings()
 
   const blockedInfo = blockedPeriod
     ? `\nBRUKEREN ER OPPTATT (${blockedPeriod.label}) fra ${blockedPeriod.start} til ${blockedPeriod.end}. Ikke planlegg NOEN oppgaver i denne perioden. Legg alle oppgaver etter ${blockedPeriod.end}.`
@@ -137,6 +138,7 @@ Husk for oppgavene:
 - Maks 6 timer aktivt arbeid totalt
 - Veksle mellom krevende og lettere oppgaver
 - Ingen oppgaver før ${currentTime}
+- INGEN oppgaver som starter etter ${latestTaskTime} — dagen er ferdig da
 
 Kun JSON. Ingen markdown eller tekst utenfor objektet.`,
     `Hjelp meg planlegge dagen min: "${input}"`,

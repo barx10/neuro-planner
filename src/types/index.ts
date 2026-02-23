@@ -79,5 +79,6 @@ export interface UserSettings {
     anthropic: string
   }
   rememberKeys: boolean
+  latestTaskTime: string  // "HH:mm" — seneste tidspunkt AI planlegger oppgaver
   weeklySchedule?: Partial<Record<WeekDay, BlockedPeriod>>
 }

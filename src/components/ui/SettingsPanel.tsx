@@ -270,6 +270,22 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
             </div>
           </div>
 
+          {/* Latest task time */}
+          <div>
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">
+              Seneste oppgavetid
+            </label>
+            <p className="text-[11px] text-gray-400 mb-2">
+              AI-en planlegger ikke oppgaver etter dette tidspunktet.
+            </p>
+            <input
+              type="time"
+              value={settings.latestTaskTime}
+              onChange={e => e.target.value && updateSettings({ latestTaskTime: e.target.value })}
+              className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+            />
+          </div>
+
           {/* Ukeskjema */}
           <div>
             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">
