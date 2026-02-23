@@ -1,6 +1,6 @@
 # Neurominder
 
-En visuell dagplanlegger bygget for mennesker med ADHD og autisme. Inspirert av [Tiimo](https://www.tiimo.dk/), men som en gratis PWA du kan installere direkte fra nettleseren.
+En visuell dagplanlegger bygget for mennesker som sliter med å lage gode planer i hverdagen. Inspirert av [Tiimo](https://www.tiimo.dk/), men som en gratis PWA du kan installere direkte fra nettleseren.
 
 **[Prøv Neurominder](https://neurominder.vercel.app)**
 
