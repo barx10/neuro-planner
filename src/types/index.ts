@@ -47,6 +47,7 @@ export interface Activity {
 export type AiProvider = 'gemini' | 'openai' | 'anthropic'
 
 export type AiModel =
+  | 'gemini-3.1-flash-lite-preview'
   | 'gemini-2.5-flash'
   | 'gemini-3-flash-preview'
   | 'gpt-5-mini'
