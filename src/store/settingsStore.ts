@@ -9,7 +9,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   defaultView: 'day',
   theme: 'auto',
   aiProvider: 'gemini',
-  aiModel: 'gemini-3.1-flash-lite-preview',
+  aiModel: 'gemini-3.6-flash',
   apiKeys: { gemini: '', openai: '', anthropic: '' },
   rememberKeys: true,
   latestTaskTime: '21:00',

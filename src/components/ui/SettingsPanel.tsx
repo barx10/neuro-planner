@@ -21,9 +21,8 @@ const PROVIDERS: {
     label: 'Google Gemini',
     icon: '\u2728',
     models: [
-      { value: 'gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash Lite Preview' },
-      { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-      { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash Preview' },
+      { value: 'gemini-3.6-flash', label: 'Gemini 3.6 Flash' },
+      { value: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash Lite' },
     ],
   },
   {
@@ -31,7 +30,8 @@ const PROVIDERS: {
     label: 'OpenAI',
     icon: '\u{1F916}',
     models: [
-      { value: 'gpt-5-mini', label: 'GPT-5 Mini' },
+      { value: 'gpt-5.6-luna', label: 'GPT-5.6 Luna' },
+      { value: 'gpt-5.6-terra', label: 'GPT-5.6 Terra' },
     ],
   },
   {

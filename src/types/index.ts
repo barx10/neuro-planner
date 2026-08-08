@@ -47,10 +47,10 @@ export interface Activity {
 export type AiProvider = 'gemini' | 'openai' | 'anthropic'
 
 export type AiModel =
-  | 'gemini-3.1-flash-lite-preview'
-  | 'gemini-2.5-flash'
-  | 'gemini-3-flash-preview'
-  | 'gpt-5-mini'
+  | 'gemini-3.6-flash'
+  | 'gemini-3.5-flash-lite'
+  | 'gpt-5.6-luna'
+  | 'gpt-5.6-terra'
   | 'claude-haiku-4-5-20250929'
 
 export interface BlockedPeriod {
