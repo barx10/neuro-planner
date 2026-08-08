@@ -39,7 +39,8 @@ const PROVIDERS: {
     label: 'Anthropic',
     icon: '\u{1F9E0}',
     models: [
-      { value: 'claude-haiku-4-5-20250929', label: 'Claude Haiku 4.5' },
+      { value: 'claude-sonnet-5', label: 'Claude Sonnet 5' },
+      { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
     ],
   },
 ]

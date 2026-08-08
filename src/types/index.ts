@@ -51,7 +51,8 @@ export type AiModel =
   | 'gemini-3.5-flash-lite'
   | 'gpt-5.6-luna'
   | 'gpt-5.6-terra'
-  | 'claude-haiku-4-5-20250929'
+  | 'claude-haiku-4-5'
+  | 'claude-sonnet-5'
 
 export interface BlockedPeriod {
   start: string   // "HH:mm"
