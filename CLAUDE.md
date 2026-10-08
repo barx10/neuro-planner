@@ -224,7 +224,7 @@ export async function breakdownTask(taskTitle: string): Promise<string[]> {
       'anthropic-dangerous-direct-browser-access': 'true'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5-20250929',
+      model: 'claude-sonnet-5-5',
       max_tokens: 500,
       system: `Du er en hjelpsom assistent for nevrodivergente brukere.
 Svar ALLTID med kun en JSON-array av strenger. Ingen forklaring, ingen markdown.
@@ -254,7 +254,7 @@ export async function generateDayPlan(input: string): Promise<Array<{
       'anthropic-dangerous-direct-browser-access': 'true'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5-20250929',
+      model: 'claude-sonnet-5-5',
       max_tokens: 1000,
       system: `Du lager dagplaner for nevrodivergente. Svar ALLTID med kun en JSON-array.
 Hvert objekt har: title (string), emoji (string), startTime ("HH:mm"), durationMinutes (number).
