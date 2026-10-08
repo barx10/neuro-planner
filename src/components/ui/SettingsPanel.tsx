@@ -21,7 +21,8 @@ const PROVIDERS: {
     label: 'Google Gemini',
     icon: '\u2728',
     models: [
-      { value: 'gemini-3.6-flash', label: 'Gemini 3.6 Flash' },
+      { value: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash' },
+      { value: 'gemini-3.7-flash', label: 'Gemini 3.7 Flash' },
       { value: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash Lite' },
     ],
   },
@@ -39,8 +40,8 @@ const PROVIDERS: {
     label: 'Anthropic',
     icon: '\u{1F9E0}',
     models: [
-      { value: 'claude-sonnet-5', label: 'Claude Sonnet 5' },
-      { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
+      { value: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5' },
+      { value: 'claude-haiku-5-5', label: 'Claude Haiku 5.5' },
     ],
   },
 ]

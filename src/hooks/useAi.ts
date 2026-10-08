@@ -19,14 +19,18 @@ async function anthropicChat(system: string, userMessage: string, maxTokens: num
     },
     body: JSON.stringify({
       model: aiModel,
-      max_tokens: maxTokens,
+      // Nyere modeller tenker som standard, og tenkingen deler token-grensen
+      max_tokens: Math.max(maxTokens, 2000),
+      output_config: { effort: 'low' },
       system,
       messages: [{ role: 'user', content: userMessage }]
     })
   })
   const data = await response.json()
   if (data.error) throw new Error(data.error.message)
-  return data.content[0].text.trim()
+  const textBlock = data.content.find((b: { type: string }) => b.type === 'text')
+  if (!textBlock) throw new Error('Tomt svar fra Anthropic')
+  return textBlock.text.trim()
 }
 
 // --- Gemini ---

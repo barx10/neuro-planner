@@ -47,12 +47,13 @@ export interface Activity {
 export type AiProvider = 'gemini' | 'openai' | 'anthropic'
 
 export type AiModel =
-  | 'gemini-3.6-flash'
+  | 'gemini-3.8-flash'
+  | 'gemini-3.7-flash'
   | 'gemini-3.5-flash-lite'
   | 'gpt-5.6-luna'
   | 'gpt-5.6-terra'
-  | 'claude-haiku-4-5'
-  | 'claude-sonnet-5'
+  | 'claude-haiku-5-5'
+  | 'claude-sonnet-5-5'
 
 export interface BlockedPeriod {
   start: string   // "HH:mm"
