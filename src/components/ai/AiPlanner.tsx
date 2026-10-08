@@ -43,7 +43,7 @@ export function AiPlanner({ date, onClose }: AiPlannerProps) {
       setAnalysis(result.analysis)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Ukjent feil'
-      setError(`Fikk ikke laget en plan: ${msg}`)
+      setError(msg)
     }
     setLoading(false)
   }
