@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { UserSettings } from '../types'
 import { db } from '../db/database'
+import { PROVIDERS } from '../utils/aiProviders'
 
 const DEFAULT_SETTINGS: UserSettings = {
   name: 'user',
@@ -43,6 +44,13 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     const saved = await db.settings.get('user')
     if (saved) {
       const merged = { ...DEFAULT_SETTINGS, ...saved, apiKeys: { ...DEFAULT_SETTINGS.apiKeys, ...saved.apiKeys } }
+      // Lagret modell kan være utgått (f.eks. gemini-3.6-flash). Bytt til leverandørens standard.
+      const provider = PROVIDERS.find(p => p.value === merged.aiProvider) ?? PROVIDERS[0]
+      if (!provider.models.some(m => m.value === merged.aiModel)) {
+        merged.aiProvider = provider.value
+        merged.aiModel = provider.models[0].value
+        await db.settings.put(merged.rememberKeys ? merged : { ...merged, apiKeys: DEFAULT_SETTINGS.apiKeys })
+      }
       set({ settings: merged })
       applyTheme(merged.theme)
     } else {
