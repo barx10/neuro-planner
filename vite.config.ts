@@ -10,17 +10,19 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.ts',
       registerType: 'autoUpdate',
-      includeAssets: ['icon.png', 'splash.png'],
+      includeAssets: ['favicon.svg', 'icon.png', 'icon-192.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Neurominder',
         short_name: 'Neurominder',
         description: 'Visuell planlegger for nevrodivergente',
         theme_color: '#fafaf9',
-        background_color: '#171830',
+        background_color: '#fafaf9',
         display: 'standalone',
         orientation: 'portrait',
         icons: [
-          { src: 'icon.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icon.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ]
       },
       injectManifest: {
