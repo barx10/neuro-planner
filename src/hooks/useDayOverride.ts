@@ -12,7 +12,15 @@ export function useDayOverride(date: string) {
     setLoading(false)
   }, [date])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    let cancelled = false
+    db.dayOverrides.get(date).then(row => {
+      if (cancelled) return
+      setOverride(row)
+      setLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [date])
 
   const setDayFree = async () => {
     await db.dayOverrides.put({ date, blockedPeriod: null })

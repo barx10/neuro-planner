@@ -15,8 +15,8 @@ export default defineConfig({
         name: 'Neurominder',
         short_name: 'Neurominder',
         description: 'Visuell planlegger for nevrodivergente',
-        theme_color: '#6366f1',
-        background_color: '#1e1b4b',
+        theme_color: '#fafaf9',
+        background_color: '#171830',
         display: 'standalone',
         orientation: 'portrait',
         icons: [

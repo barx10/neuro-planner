@@ -1,208 +1,122 @@
 import { useState } from 'react'
-import { useSortable } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { Check, Trash2, Play, ChevronDown, ChevronUp, GripVertical } from 'lucide-react'
+import { Check, Play, ChevronDown } from 'lucide-react'
 import type { Task } from '../../types'
 import { useTaskStore } from '../../store/taskStore'
-import { getEndTime, formatDuration } from '../../utils/timeHelpers'
-import { hexToRgba } from '../../utils/colorHelpers'
-import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { formatDuration } from '../../utils/timeHelpers'
+
+export type TimeStatus = { type: 'starts-in' | 'in-progress'; minutes: number }
 
 interface TaskCardProps {
   task: Task
-  isNow?: boolean
-  timeStatus?: { type: 'starts-in' | 'in-progress'; minutes: number }
+  timeStatus?: TimeStatus
   onStartTimer: (task: Task) => void
+  onEdit: (task: Task) => void
 }
 
-export function TaskCard({ task, isNow, timeStatus, onStartTimer }: TaskCardProps) {
-  const { toggleComplete, deleteTask, updateTask } = useTaskStore()
+export function TaskCard({ task, timeStatus, onStartTimer, onEdit }: TaskCardProps) {
+  const { toggleComplete, updateTask } = useTaskStore()
   const [expanded, setExpanded] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
-  const [justCompleted, setJustCompleted] = useState(false)
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: task.id })
+  const isNow = timeStatus?.type === 'in-progress' && !task.completed
+  const doneSteps = task.subtasks.filter(s => s.completed).length
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  }
-
-  const handleToggleComplete = async () => {
-    if (!task.completed) {
-      setJustCompleted(true)
-      setTimeout(() => setJustCompleted(false), 600)
-    }
-    await toggleComplete(task.id)
-  }
-
-  const handleToggleSubtask = async (subtaskId: string) => {
-    const subtasks = task.subtasks.map(s =>
-      s.id === subtaskId ? { ...s, completed: !s.completed } : s
-    )
-    await updateTask(task.id, { subtasks })
-  }
+  const toggleSubtask = (id: string) =>
+    updateTask(task.id, {
+      subtasks: task.subtasks.map(s => (s.id === id ? { ...s, completed: !s.completed } : s)),
+    })
 
   return (
-    <>
-      <div
-        ref={setNodeRef}
-        className={`animate-slide-up rounded-2xl p-4 mb-3 card-hover border ${
-          isNow && !task.completed
-            ? 'border-2 animate-pulse-soft'
-            : 'border border-white/40 dark:border-white/5'
-        } ${isDragging ? 'opacity-50 scale-[1.02] shadow-2xl z-50' : ''
-        } ${task.completed ? 'opacity-50' : ''} ${justCompleted ? 'animate-confetti' : ''}`}
-        style={{
-          ...style,
-          borderColor: isNow && !task.completed ? task.color : undefined,
-          background: isNow && !task.completed
-            ? `linear-gradient(135deg, ${hexToRgba(task.color, 0.15)}, ${hexToRgba(task.color, 0.06)})`
-            : `linear-gradient(135deg, ${hexToRgba(task.color, 0.08)}, ${hexToRgba(task.color, 0.03)})`,
-          boxShadow: isDragging
-            ? `0 20px 60px -10px ${hexToRgba(task.color, 0.3)}`
-            : isNow && !task.completed
-              ? `0 4px 20px -4px ${hexToRgba(task.color, 0.35)}`
-              : `0 2px 12px -4px ${hexToRgba(task.color, 0.15)}`,
-        }}
-      >
-        <div className="flex items-center gap-3">
-          {/* Drag handle */}
-          <div
-            {...attributes}
-            {...listeners}
-            className="cursor-grab active:cursor-grabbing text-gray-300 dark:text-gray-600 hover:text-gray-400 touch-none transition-colors"
-            aria-label="Dra for å endre rekkefølge"
-          >
-            <GripVertical size={18} />
-          </div>
+    <li className="flex gap-3">
+      {/* Tidskolonne */}
+      <div className="w-12 shrink-0 pt-4 text-right">
+        <p className={`text-sm font-semibold tabular ${task.completed ? 'text-subtle' : 'text-ink'}`}>{task.startTime}</p>
+      </div>
 
-          {/* Checkbox */}
+      <div
+        className={`flex-1 min-w-0 card overflow-hidden transition-colors ${
+          isNow ? 'border-accent ring-1 ring-accent' : ''
+        }`}
+      >
+        <div className="flex items-stretch">
+          <span className="w-1 shrink-0" style={{ backgroundColor: task.color, opacity: task.completed ? 0.35 : 1 }} aria-hidden />
+
           <button
-            onClick={handleToggleComplete}
-            className="relative w-7 h-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-300 min-w-[44px] min-h-[44px] -m-2"
-            style={{
-              borderColor: task.completed ? '#22c55e' : hexToRgba(task.color, 0.4),
-              backgroundColor: task.completed ? '#22c55e' : 'transparent',
-            }}
-            aria-label={task.completed ? 'Marker som ikke fullført' : 'Marker som fullført'}
+            onClick={() => toggleComplete(task.id)}
+            className="w-12 shrink-0 flex items-center justify-center"
+            aria-label={task.completed ? `Marker «${task.title}» som ikke gjort` : `Marker «${task.title}» som gjort`}
           >
-            {task.completed && <Check size={14} className="text-white" strokeWidth={3} />}
+            <span
+              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+                task.completed ? 'bg-success border-success' : 'border-subtle hover:border-ink'
+              }`}
+            >
+              {task.completed && <Check size={14} className="text-white dark:text-bg" strokeWidth={3} />}
+            </span>
           </button>
 
-          {/* Content */}
-          <div className="flex-1 min-w-0 ml-1">
-            {/* Title row */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-lg drop-shadow-sm">{task.emoji}</span>
-              <span className={`font-semibold text-[15px] truncate flex-1 ${task.completed ? 'line-through text-gray-400' : ''}`}>
-                {task.title}
-              </span>
-              {task.subtasks.length > 0 && (
-                <button
-                  onClick={() => setExpanded(!expanded)}
-                  className="p-1 rounded-lg text-gray-400 hover:text-gray-600 transition-all duration-200 flex-shrink-0"
-                  aria-label={expanded ? 'Skjul delsteg' : 'Vis delsteg'}
-                >
-                  {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-                </button>
+          <button
+            onClick={() => onEdit(task)}
+            className="flex-1 min-w-0 py-3 pr-2 text-left"
+            aria-label={`Rediger «${task.title}»`}
+          >
+            <span className={`flex items-start gap-2 font-medium leading-snug ${task.completed ? 'line-through text-subtle' : ''}`}>
+              <span aria-hidden className="shrink-0">{task.emoji}</span>
+              <span className="line-clamp-2">{task.title}</span>
+            </span>
+            <span className="flex items-center gap-x-2 mt-0.5 text-sm text-subtle tabular">
+              {isNow ? (
+                <span className="font-semibold text-accent">Nå · {timeStatus!.minutes} min igjen</span>
+              ) : timeStatus?.type === 'starts-in' && !task.completed ? (
+                <span className="font-medium text-muted">Om {timeStatus.minutes} min</span>
+              ) : (
+                <span>{formatDuration(task.durationMinutes)}</span>
               )}
-              {task.durationMinutes >= 25 && <span className="text-[13px] flex-shrink-0">🍅</span>}
-            </div>
+            </span>
+          </button>
 
-            {/* Meta row */}
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              {isNow && !task.completed && (
-                <span className="text-[11px] font-bold text-white px-2 py-0.5 rounded-full animate-pulse-soft" style={{ backgroundColor: task.color }}>
-                  Nå
-                </span>
-              )}
-              {!task.completed && timeStatus && timeStatus.type === 'starts-in' && timeStatus.minutes <= 30 && (
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: hexToRgba(task.color, 0.12), color: task.color }}>
-                  om {timeStatus.minutes} min
-                </span>
-              )}
-              {!task.completed && timeStatus && timeStatus.type === 'in-progress' && (
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500">
-                  {timeStatus.minutes} min igjen
-                </span>
-              )}
-              <span
-                className="text-[11px] font-medium px-2 py-0.5 rounded-full"
-                style={{
-                  backgroundColor: hexToRgba(task.color, 0.12),
-                  color: task.color,
-                }}
-              >
-                {task.startTime} – {getEndTime(task.startTime, task.durationMinutes)}
-              </span>
-              <span className="text-[11px] text-gray-400">{formatDuration(task.durationMinutes)}</span>
-            </div>
-          </div>
-
-          {/* Actions: play + delete only */}
-          <div className="flex items-center gap-0.5">
-            {!task.completed && (
-              <button
-                onClick={() => onStartTimer(task)}
-                className="p-2 rounded-xl transition-all duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center hover:scale-110 active:scale-95"
-                style={{ color: task.color }}
-                aria-label="Start tidtaker"
-              >
-                <Play size={18} fill="currentColor" />
-              </button>
-            )}
+          {!task.completed && (
             <button
-              onClick={() => setConfirmDelete(true)}
-              className="p-2 rounded-xl text-gray-300 hover:text-red-500 transition-all duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-red-500/10"
-              aria-label="Slett oppgave"
+              onClick={() => onStartTimer(task)}
+              className="w-12 shrink-0 flex items-center justify-center text-muted hover:text-ink transition-colors"
+              aria-label={`Start tidtaker for «${task.title}»`}
             >
-              <Trash2 size={16} />
+              <span className={`w-9 h-9 rounded-full flex items-center justify-center ${isNow ? 'bg-accent text-on-accent' : 'bg-sunken'}`}>
+                <Play size={15} fill="currentColor" className="ml-0.5" />
+              </span>
             </button>
-          </div>
+          )}
         </div>
 
-        {/* Subtasks */}
-        {expanded && task.subtasks.length > 0 && (
-          <div className="mt-3 ml-12 space-y-2 animate-slide-down">
-            {task.subtasks.map(sub => (
-              <label key={sub.id} className="flex items-center gap-2.5 cursor-pointer group">
-                <div className={`w-4 h-4 rounded-md border-2 flex items-center justify-center transition-all ${
-                  sub.completed
-                    ? 'border-green-500 bg-green-500'
-                    : 'border-gray-300 dark:border-gray-600 group-hover:border-indigo-400'
-                }`}>
-                  {sub.completed && <Check size={10} className="text-white" strokeWidth={3} />}
-                </div>
-                <input
-                  type="checkbox"
-                  checked={sub.completed}
-                  onChange={() => handleToggleSubtask(sub.id)}
-                  className="sr-only"
-                />
-                <span className={`text-sm transition-colors ${sub.completed ? 'line-through text-gray-400' : 'text-gray-600 dark:text-gray-300'}`}>
-                  {sub.title}
-                </span>
-              </label>
-            ))}
+        {task.subtasks.length > 0 && (
+          <div className="border-t border-line">
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="w-full flex items-center gap-2 pl-[52px] pr-4 min-h-[40px] text-sm text-muted hover:text-ink"
+              aria-expanded={expanded}
+            >
+              <span className="tabular">{doneSteps} av {task.subtasks.length} steg</span>
+              <ChevronDown size={16} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
+            </button>
+            {expanded && (
+              <ul className="pb-2">
+                {task.subtasks.map(sub => (
+                  <li key={sub.id}>
+                    <label className="flex items-center gap-3 pl-[52px] pr-4 min-h-[40px] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={sub.completed}
+                        onChange={() => toggleSubtask(sub.id)}
+                        className="w-4 h-4 accent-[rgb(var(--success))]"
+                      />
+                      <span className={`text-sm ${sub.completed ? 'line-through text-subtle' : ''}`}>{sub.title}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
       </div>
-
-      <ConfirmDialog
-        open={confirmDelete}
-        title="Slett oppgave"
-        message={`Er du sikker på at du vil slette "${task.title}"?`}
-        onConfirm={() => { deleteTask(task.id); setConfirmDelete(false) }}
-        onCancel={() => setConfirmDelete(false)}
-      />
-    </>
+    </li>
   )
 }

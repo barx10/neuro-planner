@@ -1,25 +1,21 @@
 import { useReducer, useEffect, useRef } from 'react'
-import { X, Play, Pause, SkipForward } from 'lucide-react'
+import { Play, Pause, SkipForward, Check } from 'lucide-react'
 import type { Task } from '../../types'
 import { useWakeLock } from '../../hooks/useWakeLock'
 import { formatSeconds } from '../../utils/timeHelpers'
-import { hexToRgba } from '../../utils/colorHelpers'
+import { useTaskStore } from '../../store/taskStore'
+import { TimerShell, TimerRing, timerPrimary, timerSecondary } from './TimerShell'
 import { notifyEncouragement, notifyCompletion, playDing } from '../../hooks/useNotifications'
 
 const POMODORO_S = 25 * 60
 
 const BREAK_MSGS = [
-  'Flott fokus! Pust ut litt ☕',
-  'En runde til i boks! Slapp av 🌿',
-  'Nydelig jobbing! Ta et minutt 🧘',
+  'Fint fokus. Pust ut litt.',
+  'En runde til er gjort. Slapp av.',
+  'Godt jobbet. Ta et minutt.',
 ]
 
-const ENCOURAGEMENTS = [
-  { emoji: '💪', text: 'Du gjør det bra!' },
-  { emoji: '🌟', text: 'Kjempefint fokus!' },
-  { emoji: '🔥', text: 'Du er i flytsonen!' },
-  { emoji: '🧠', text: 'Hjernen din jobber hardt!' },
-]
+const ENCOURAGEMENTS = ['Du gjør det bra.', 'Fint fokus.', 'Fortsett i ditt tempo.']
 
 type Phase = 'work' | 'break-choice' | 'break' | 'ready' | 'done'
 
@@ -84,6 +80,7 @@ interface Props { task: Task; onClose: () => void }
 
 export function PomodoroTimer({ task, onClose }: Props) {
   useWakeLock()
+  const { updateTask } = useTaskStore()
 
   const totalWorkS = task.durationMinutes * 60
   const firstSessionS = Math.min(POMODORO_S, totalWorkS)
@@ -115,7 +112,7 @@ export function PomodoroTimer({ task, onClose }: Props) {
     if (state.phase === 'break-choice') playDing('soft')
     else if (state.phase === 'ready') playDing('soft')
     else if (state.phase === 'done') {
-      notifyCompletion(task.emoji, task.title, `${state.pomodoroCount} 🍅 i boks!`)
+      notifyCompletion(task.emoji, task.title, `${state.pomodoroCount} ${state.pomodoroCount === 1 ? 'økt' : 'økter'} fullført.`)
     }
   }, [state.phase]) // eslint-disable-line
 
@@ -127,8 +124,7 @@ export function PomodoroTimer({ task, onClose }: Props) {
     const key = `${state.pomodoroCount}-${idx}`
     if (idx > 0 && !encShownAt.current.has(key)) {
       encShownAt.current.add(key)
-      const msg = ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)]
-      notifyEncouragement(msg.emoji, msg.text)
+      notifyEncouragement('', ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)])
     }
   }, [state.secondsLeft]) // eslint-disable-line
 
@@ -139,187 +135,95 @@ export function PomodoroTimer({ task, onClose }: Props) {
   const sessionProgress = state.phase === 'break'
     ? 1 - state.secondsLeft / state.breakDurationS
     : 1 - state.secondsLeft / state.sessionDuration
-
+  const workedMin = Math.round(Math.min(state.workedS + (state.phase === 'work' ? elapsed : 0), totalWorkS) / 60)
+  const sessions = Math.ceil(totalWorkS / POMODORO_S)
   const isBreak = state.phase === 'break'
-  const isGreen = isBreak || state.phase === 'break-choice' || state.phase === 'ready'
-  const bg = isGreen
-    ? 'linear-gradient(135deg, rgba(16,185,129,0.9), rgba(15,23,42,0.97))'
-    : `linear-gradient(135deg, ${hexToRgba(task.color, 0.95)}, ${hexToRgba('#1a1a2e', 0.97)})`
 
-  const radius = 90
-  const circ = 2 * Math.PI * radius
-  const outerR = 96
-  const outerCirc = 2 * Math.PI * outerR
-
-  // Break-choice screen
   if (state.phase === 'break-choice') {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in" style={{ background: bg }}>
-        <div className="text-center px-8 w-full max-w-sm animate-scale-in">
-          <div className="flex justify-end mb-4">
-            <button onClick={onClose} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white/70 min-w-[48px] min-h-[48px] flex items-center justify-center">
-              <X size={20} />
-            </button>
-          </div>
-          <div className="text-5xl mb-4">🍅</div>
-          <p className="text-xl font-bold text-white mb-1">
-            {BREAK_MSGS[(state.pomodoroCount - 1) % BREAK_MSGS.length]}
-          </p>
-          <p className="text-white/40 text-sm mb-10">Velg pauselengde</p>
-          <div className="flex gap-4">
-            <button
-              onClick={() => dispatch({ type: 'CHOOSE_BREAK', minutes: 3 })}
-              className="flex-1 py-5 rounded-2xl bg-white/15 hover:bg-white/25 text-white font-bold text-xl transition-all active:scale-95 min-h-[80px]"
-            >
-              3 min
-            </button>
-            <button
-              onClick={() => dispatch({ type: 'CHOOSE_BREAK', minutes: 5 })}
-              className="flex-1 py-5 rounded-2xl bg-white text-gray-900 font-bold text-xl transition-all hover:scale-105 active:scale-95 min-h-[80px]"
-            >
-              5 min
-            </button>
-          </div>
-          <p className="text-white/30 text-xs mt-5">
-            {Math.round(state.workedS / 60)} / {task.durationMinutes} min jobbet
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  // Done screen
-  if (state.phase === 'done') {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in"
-        style={{ background: `linear-gradient(135deg, ${hexToRgba(task.color, 0.95)}, ${hexToRgba('#1a1a2e', 0.97)})` }}>
-        <div className="text-center px-8 w-full max-w-sm animate-scale-in">
-          <div className="flex justify-end mb-4">
-            <button onClick={onClose} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white/70 min-w-[48px] min-h-[48px] flex items-center justify-center">
-              <X size={20} />
-            </button>
-          </div>
-          <p className="text-6xl mb-4">🎉</p>
-          <p className="text-2xl font-bold text-white mb-2">Fantastisk!</p>
-          <p className="text-white/60 text-sm mb-3">{task.title} er fullført!</p>
-          <p className="text-white/30 text-sm">{state.pomodoroCount} 🍅 · {task.durationMinutes} min</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Work / Break / Ready — ring screen
-  const ringColor = isBreak ? '#10b981' : 'white'
-  const ringGlow = isBreak ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.4)'
-  const centerLabel = state.phase === 'ready'
-    ? 'Klar for neste runde?'
-    : isBreak
-      ? 'Pust ut...'
-      : state.running ? 'Fokus...' : 'Pause'
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in" style={{ background: bg }}>
-      <div className="text-center px-8 w-full max-w-sm animate-scale-in">
-        <div className="flex justify-end mb-4">
-          <button onClick={onClose} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white/70 min-w-[48px] min-h-[48px] flex items-center justify-center">
-            <X size={20} />
+      <TimerShell onClose={onClose}>
+        <p className="text-sm text-white/60 mb-2 tabular">Økt {state.pomodoroCount} av {sessions} er ferdig</p>
+        <h2 className="text-2xl font-semibold mb-2">
+          {BREAK_MSGS[(state.pomodoroCount - 1) % BREAK_MSGS.length]}
+        </h2>
+        <p className="text-white/60 mb-10">Hvor lang pause vil du ha?</p>
+        <div className="grid grid-cols-2 gap-3">
+          <button onClick={() => dispatch({ type: 'CHOOSE_BREAK', minutes: 3 })} className={timerSecondary + ' text-lg'}>
+            3 min
+          </button>
+          <button onClick={() => dispatch({ type: 'CHOOSE_BREAK', minutes: 5 })} className={timerPrimary + ' text-lg'}>
+            5 min
           </button>
         </div>
+        <button onClick={() => dispatch({ type: 'SKIP_BREAK' })} className="mt-4 min-h-[48px] text-white/60 hover:text-white">
+          Hopp over pausen
+        </button>
+      </TimerShell>
+    )
+  }
 
-        <div className="text-4xl mb-2">{isBreak ? '☕' : task.emoji}</div>
-        <h2 className="text-xl font-bold text-white mb-1">{isBreak ? 'Pause' : task.title}</h2>
-        <p className="text-white/40 text-sm mb-6">
-          {isBreak ? `🍅 × ${state.pomodoroCount}` : `🍅 × ${state.pomodoroCount + 1}`}
+  if (state.phase === 'done') {
+    return (
+      <TimerShell onClose={onClose}>
+        <p className="text-4xl mb-4" aria-hidden>{task.emoji}</p>
+        <h2 className="text-2xl font-semibold mb-2">Ferdig. Godt jobbet.</h2>
+        <p className="text-white/60 mb-10 tabular">
+          {task.title} · {state.pomodoroCount} {state.pomodoroCount === 1 ? 'økt' : 'økter'} · {task.durationMinutes} min
         </p>
+        {!task.completed && (
+          <button onClick={async () => { await updateTask(task.id, { completed: true }); onClose() }} className={timerPrimary}>
+            <Check size={20} /> Marker som gjort
+          </button>
+        )}
+      </TimerShell>
+    )
+  }
 
-        {/* Rings */}
-        <div className="relative w-64 h-64 mx-auto mb-4">
-          {/* Outer ring: overall task progress */}
-          <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 200 200">
-            <circle cx="100" cy="100" r={outerR} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
-            <circle
-              cx="100" cy="100" r={outerR} fill="none"
-              stroke="rgba(255,255,255,0.3)" strokeWidth="3" strokeLinecap="round"
-              strokeDasharray={outerCirc}
-              strokeDashoffset={outerCirc * (1 - overallProgress)}
-              style={{ transition: 'stroke-dashoffset 1s ease' }}
-            />
-          </svg>
+  const label = state.phase === 'ready'
+    ? 'Klar for neste økt'
+    : isBreak
+      ? 'Pause'
+      : state.running ? 'Fokus' : state.secondsLeft < state.sessionDuration ? 'På pause' : 'Klar'
 
-          {/* Inner ring: current session */}
-          <svg className="w-full h-full -rotate-90" viewBox="0 0 200 200"
-            role="progressbar" aria-valuenow={Math.round(sessionProgress * 100)} aria-valuemin={0} aria-valuemax={100}>
-            <circle cx="100" cy="100" r={radius} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="6" />
-            <circle
-              cx="100" cy="100" r={radius} fill="none"
-              stroke={ringColor} strokeWidth="6" strokeLinecap="round"
-              strokeDasharray={circ}
-              strokeDashoffset={circ * (1 - sessionProgress)}
-              className="progress-ring-animated"
-              style={{ filter: `drop-shadow(0 0 8px ${ringGlow})` }}
-            />
-          </svg>
+  return (
+    <TimerShell onClose={onClose}>
+      <p className="text-4xl mb-3" aria-hidden>{isBreak ? '\u2615' : task.emoji}</p>
+      <h2 className="text-xl font-semibold">{isBreak ? 'Pause' : task.title}</h2>
+      <p className="text-sm text-white/60 mt-1 mb-10 tabular">
+        Økt {Math.min(state.pomodoroCount + (isBreak ? 0 : 1), sessions)} av {sessions} · {workedMin} av {task.durationMinutes} min
+      </p>
 
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-5xl font-mono font-bold text-white tracking-wider">
-              {formatSeconds(state.secondsLeft)}
-            </span>
-            <span className="text-white/40 text-sm mt-1">{centerLabel}</span>
-          </div>
-        </div>
+      <TimerRing
+        progress={sessionProgress}
+        color={isBreak ? '#30a46c' : task.color}
+        label={label}
+        time={formatSeconds(state.secondsLeft)}
+        secondary={overallProgress}
+      />
 
-        {/* Overall progress bar */}
-        <div className="mb-6 px-2">
-          <div className="h-1 bg-white/10 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-white/35 rounded-full transition-all duration-1000"
-              style={{ width: `${overallProgress * 100}%` }}
-            />
-          </div>
-          <p className="text-white/25 text-xs mt-1.5">
-            {Math.round(Math.min(state.workedS + (state.phase === 'work' ? elapsed : 0), totalWorkS) / 60)} / {task.durationMinutes} min
-          </p>
-        </div>
-
-        {/* Controls */}
-        <div className="flex justify-center gap-4">
-          {state.phase === 'ready' && (
-            <button
-              onClick={() => dispatch({ type: 'START_NEXT' })}
-              className="flex items-center gap-2 px-10 py-4 rounded-2xl bg-white text-gray-900 font-bold min-h-[56px] hover:scale-105 active:scale-95 transition-all"
-              style={{ boxShadow: '0 8px 30px rgba(255,255,255,0.2)' }}
-            >
-              <Play size={20} fill="currentColor" /> Start
+      <div className="flex justify-center gap-3 mt-10">
+        {state.phase === 'ready' && (
+          <button onClick={() => dispatch({ type: 'START_NEXT' })} className={timerPrimary}>
+            <Play size={20} fill="currentColor" /> Start neste økt
+          </button>
+        )}
+        {state.phase === 'work' && (
+          state.running ? (
+            <button onClick={() => dispatch({ type: 'TOGGLE_RUNNING' })} className={timerSecondary + ' px-8'}>
+              <Pause size={20} /> Pause
             </button>
-          )}
-
-          {state.phase === 'work' && (
-            <button
-              onClick={() => dispatch({ type: 'TOGGLE_RUNNING' })}
-              className={`flex items-center gap-2 px-8 py-4 rounded-2xl font-semibold min-h-[56px] transition-all ${
-                state.running
-                  ? 'bg-white/20 hover:bg-white/30 text-white'
-                  : 'bg-white text-gray-900 font-bold hover:scale-105 active:scale-95'
-              }`}
-              style={!state.running ? { boxShadow: '0 8px 30px rgba(255,255,255,0.2)' } : {}}
-            >
-              {state.running
-                ? <><Pause size={20} /> Pause</>
-                : <><Play size={20} fill="currentColor" /> {state.secondsLeft < state.sessionDuration ? 'Fortsett' : 'Start'}</>
-              }
+          ) : (
+            <button onClick={() => dispatch({ type: 'TOGGLE_RUNNING' })} className={timerPrimary}>
+              <Play size={20} fill="currentColor" /> {state.secondsLeft < state.sessionDuration ? 'Fortsett' : 'Start'}
             </button>
-          )}
-
-          {isBreak && (
-            <button
-              onClick={() => dispatch({ type: 'SKIP_BREAK' })}
-              className="flex items-center gap-2 px-6 py-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white/60 font-medium min-h-[56px] transition-all"
-            >
-              <SkipForward size={18} /> Hopp over
-            </button>
-          )}
-        </div>
+          )
+        )}
+        {isBreak && (
+          <button onClick={() => dispatch({ type: 'SKIP_BREAK' })} className={timerSecondary}>
+            <SkipForward size={18} /> Hopp over
+          </button>
+        )}
       </div>
-    </div>
+    </TimerShell>
   )
 }

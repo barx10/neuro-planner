@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { X, Trash2, Eye, EyeOff, Bell, BellOff, Plus, Shield } from 'lucide-react'
+import { X, Trash2, Eye, EyeOff, Bell, BellOff, Plus, Check } from 'lucide-react'
+import { Sheet } from './Sheet'
 import { useSettingsStore } from '../../store/settingsStore'
 import { db } from '../../db/database'
 import { ConfirmDialog } from './ConfirmDialog'
@@ -13,13 +14,11 @@ interface SettingsPanelProps {
 const PROVIDERS: {
   value: AiProvider
   label: string
-  icon: string
   models: { value: AiModel; label: string }[]
 }[] = [
   {
     value: 'gemini',
     label: 'Google Gemini',
-    icon: '\u2728',
     models: [
       { value: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash' },
       { value: 'gemini-3.7-flash', label: 'Gemini 3.7 Flash' },
@@ -29,7 +28,6 @@ const PROVIDERS: {
   {
     value: 'openai',
     label: 'OpenAI',
-    icon: '\u{1F916}',
     models: [
       { value: 'gpt-5.6-luna', label: 'GPT-5.6 Luna' },
       { value: 'gpt-5.6-terra', label: 'GPT-5.6 Terra' },
@@ -38,7 +36,6 @@ const PROVIDERS: {
   {
     value: 'anthropic',
     label: 'Anthropic',
-    icon: '\u{1F9E0}',
     models: [
       { value: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5' },
       { value: 'claude-haiku-5-5', label: 'Claude Haiku 5.5' },
@@ -133,90 +130,53 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const currentProvider = PROVIDERS.find(p => p.value === settings.aiProvider)!
   const currentKey = settings.apiKeys[settings.aiProvider]
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-      <div
-        className="bg-white dark:bg-gray-800 rounded-t-3xl sm:rounded-3xl p-6 w-full max-w-md shadow-2xl animate-slide-up max-h-[85vh] overflow-y-auto"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold">Innstillinger</h2>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 min-w-[48px] min-h-[48px] flex items-center justify-center transition-all active:scale-90"
-            aria-label="Lukk"
-          >
-            <X size={20} />
-          </button>
-        </div>
+  const segmented = (selected: boolean) =>
+    `flex-1 min-h-[44px] px-3 rounded-lg text-sm font-medium transition-colors ${
+      selected ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'
+    }`
 
-        <div className="space-y-6">
-          {/* AI Provider */}
-          <div>
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">
-              AI-leverandør
-            </label>
-            <div className="space-y-2.5">
-              {PROVIDERS.map(provider => (
+  return (
+    <Sheet title="Innstillinger" onClose={onClose}>
+      <div className="space-y-8">
+        {/* AI */}
+        <section aria-labelledby="set-ai">
+          <h3 id="set-ai" className="label mb-3">AI</h3>
+          <div className="card divide-y divide-line" role="radiogroup" aria-label="AI-leverandør">
+            {PROVIDERS.map(provider => {
+              const selected = settings.aiProvider === provider.value
+              return (
                 <button
                   key={provider.value}
+                  role="radio"
+                  aria-checked={selected}
                   onClick={() => selectProvider(provider.value)}
-                  className={`w-full flex items-center gap-3.5 p-4 rounded-2xl border-2 transition-all text-left active:scale-[0.98] ${
-                    settings.aiProvider === provider.value
-                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 shadow-lg shadow-indigo-500/10'
-                      : 'border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600'
-                  }`}
+                  className="w-full flex items-center gap-3 px-4 min-h-[56px] text-left first:rounded-t-2xl last:rounded-b-2xl hover:bg-sunken transition-colors"
                 >
-                  <span className="text-2xl">{provider.icon}</span>
-                  <div className="flex-1">
-                    <p className="font-semibold text-sm">{provider.label}</p>
-                    <p className="text-xs text-gray-400">
-                      {provider.models.map(m => m.label).join(', ')}
-                    </p>
-                  </div>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                    settings.aiProvider === provider.value
-                      ? 'border-indigo-500 bg-indigo-500'
-                      : 'border-gray-300 dark:border-gray-600'
-                  }`}>
-                    {settings.aiProvider === provider.value && (
-                      <div className="w-2 h-2 rounded-full bg-white" />
-                    )}
-                  </div>
+                  <span className="flex-1 font-medium">{provider.label}</span>
+                  {selected && <Check size={18} className="text-accent" />}
+                </button>
+              )
+            })}
+          </div>
+
+          {currentProvider.models.length > 1 && (
+            <div className="mt-3 flex gap-1 bg-sunken rounded-xl p-1" role="radiogroup" aria-label="Modell">
+              {currentProvider.models.map(model => (
+                <button
+                  key={model.value}
+                  role="radio"
+                  aria-checked={settings.aiModel === model.value}
+                  onClick={() => updateSettings({ aiModel: model.value })}
+                  className={segmented(settings.aiModel === model.value)}
+                >
+                  {model.label}
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Model selector */}
-          {currentProvider.models.length > 1 && (
-            <div>
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">
-                Modell
-              </label>
-              <div className="flex gap-2 bg-gray-100 dark:bg-gray-900 rounded-2xl p-1.5">
-                {currentProvider.models.map(model => (
-                  <button
-                    key={model.value}
-                    onClick={() => updateSettings({ aiModel: model.value })}
-                    className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-semibold transition-all duration-200 text-center ${
-                      settings.aiModel === model.value
-                        ? 'bg-white dark:bg-gray-700 shadow-md text-gray-900 dark:text-white'
-                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
-                    }`}
-                  >
-                    {model.label}
-                  </button>
-                ))}
-              </div>
-            </div>
           )}
 
-          {/* API Key */}
-          <div>
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">
-              API-nøkkel — {currentProvider.label}
-            </label>
+          <label className="block mt-4">
+            <span className="text-sm font-medium mb-1.5 block">API-nøkkel for {currentProvider.label}</span>
             <div className="relative">
               <input
                 type={showKey === settings.aiProvider ? 'text' : 'password'}
@@ -224,239 +184,176 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 onChange={e => updateSettings({
                   apiKeys: { ...settings.apiKeys, [settings.aiProvider]: e.target.value }
                 })}
-                placeholder="Lim inn API-nøkkel..."
-                className="w-full px-4 py-3 pr-12 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm font-mono placeholder:text-gray-300 dark:placeholder:text-gray-600"
+                placeholder="Lim inn nøkkel"
+                autoComplete="off"
+                className="field pr-14 font-mono text-sm"
               />
               <button
                 type="button"
                 onClick={() => setShowKey(showKey === settings.aiProvider ? null : settings.aiProvider)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg text-gray-400 hover:text-gray-600 transition-colors"
+                className="icon-btn absolute right-0 top-1/2 -translate-y-1/2"
                 aria-label={showKey === settings.aiProvider ? 'Skjul nøkkel' : 'Vis nøkkel'}
               >
-                {showKey === settings.aiProvider ? <EyeOff size={16} /> : <Eye size={16} />}
+                {showKey === settings.aiProvider ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            {currentKey ? (
-              <p className="text-[11px] text-green-500 mt-1.5 px-1 font-medium">Nøkkel lagret lokalt</p>
-            ) : (
-              <p className="text-[11px] text-gray-400 mt-1.5 px-1">Nøkkelen lagres kun på din enhet</p>
-            )}
+          </label>
+          <p className="text-sm text-subtle mt-2">
+            Nøkkelen lagres bare på denne enheten og sendes direkte til {currentProvider.label}.
+          </p>
 
-            {/* Remember key toggle */}
-            <button
-              onClick={() => updateSettings({ rememberKeys: !settings.rememberKeys })}
-              className="w-full flex items-center gap-3 mt-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-900 transition-all active:scale-[0.98]"
-            >
-              <div className={`w-10 h-6 rounded-full relative transition-colors duration-200 ${
-                settings.rememberKeys ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'
-              }`}>
-                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
-                  settings.rememberKeys ? 'translate-x-5' : 'translate-x-1'
-                }`} />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-sm font-semibold">Husk nøkkel mellom økter</p>
-                <p className="text-[11px] text-gray-400">
-                  {settings.rememberKeys
-                    ? 'Nøkkelen lagres permanent på enheten'
-                    : 'Nøkkelen forsvinner når du lukker appen'}
-                </p>
-              </div>
-            </button>
+          <button
+            role="switch"
+            aria-checked={settings.rememberKeys}
+            onClick={() => updateSettings({ rememberKeys: !settings.rememberKeys })}
+            className="w-full flex items-center gap-3 mt-3 min-h-[56px] text-left"
+          >
+            <span className="flex-1">
+              <span className="block text-sm font-medium">Husk nøkkelen</span>
+              <span className="block text-sm text-subtle">
+                {settings.rememberKeys ? 'Lagres til du fjerner den' : 'Glemmes når du lukker appen'}
+              </span>
+            </span>
+            <span className={`w-11 h-6 rounded-full relative transition-colors shrink-0 ${settings.rememberKeys ? 'bg-accent' : 'bg-subtle/50'}`}>
+              <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${settings.rememberKeys ? 'translate-x-6' : 'translate-x-1'}`} />
+            </span>
+          </button>
 
-            {/* Security info */}
-            <div className="flex items-start gap-2.5 mt-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30">
-              <Shield size={16} className="text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
-              <p className="text-[11px] text-emerald-700 dark:text-emerald-300 leading-relaxed">
-                Nøkkelen lagres kun på din enhet og sendes direkte til {currentProvider.label}. Neurominder ser eller lagrer aldri nøkkelen din.
-              </p>
-            </div>
-          </div>
-
-          {/* Latest task time */}
-          <div>
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">
-              Seneste oppgavetid
-            </label>
-            <p className="text-[11px] text-gray-400 mb-2">
-              AI-en planlegger ikke oppgaver etter dette tidspunktet.
-            </p>
+          <label className="flex items-center gap-3 mt-1 min-h-[56px]">
+            <span className="flex-1">
+              <span className="block text-sm font-medium">Seneste oppgavetid</span>
+              <span className="block text-sm text-subtle">AI planlegger ikke etter dette</span>
+            </span>
             <input
               type="time"
               value={settings.latestTaskTime}
               onChange={e => e.target.value && updateSettings({ latestTaskTime: e.target.value })}
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+              className="field w-auto py-2 tabular"
             />
-          </div>
+          </label>
+        </section>
 
-          {/* Ukeskjema */}
-          <div>
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">
-              Ukeskjema (Jobb/Skole)
-            </label>
-            <p className="text-[11px] text-gray-400 mb-3">
-              Merk dager du er opptatt — AI-en planlegger kun i fritiden.
-            </p>
-            <div className="space-y-2">
-              {WEEKDAYS.map(({ key, label, short }) => {
-                const period = schedule[key]
-                const isActive = !!period
-                const isExpanded = expandedDay === key
-
-                return (
-                  <div key={key} className="rounded-2xl border-2 border-gray-100 dark:border-gray-700 overflow-hidden">
-                    <div className={`flex items-center gap-3 p-3.5 transition-all ${isActive ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}>
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
-                        isActive ? 'bg-indigo-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-400'
-                      }`}>
-                        {short}
-                      </div>
-                      <span className={`font-semibold text-sm flex-1 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                        {label}
-                      </span>
-                      {isActive && period ? (
-                        <>
-                          <button
-                            onClick={() => setExpandedDay(isExpanded ? null : key)}
-                            className="text-[11px] text-indigo-500 font-semibold px-2 py-1 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-all min-h-[36px]"
-                          >
-                            {period.start}–{period.end}
-                          </button>
-                          <button
-                            onClick={() => removeDay(key)}
-                            className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all shrink-0"
-                            aria-label={`Fjern ${label}`}
-                          >
-                            <X size={14} />
-                          </button>
-                        </>
-                      ) : (
+        {/* Ukeskjema */}
+        <section aria-labelledby="set-week">
+          <h3 id="set-week" className="label mb-1">Jobb og skole</h3>
+          <p className="text-sm text-subtle mb-3">Dager du er opptatt. AI planlegger bare i fritiden.</p>
+          <ul className="card divide-y divide-line">
+            {WEEKDAYS.map(({ key, label }) => {
+              const period = schedule[key]
+              const isExpanded = expandedDay === key
+              return (
+                <li key={key}>
+                  <div className="flex items-center pl-4 pr-1 min-h-[52px]">
+                    <span className={`flex-1 text-sm ${period ? 'font-medium' : 'text-muted'}`}>{label}</span>
+                    {period ? (
+                      <>
                         <button
-                          onClick={() => addDay(key)}
-                          className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all shrink-0"
-                          aria-label={`Legg til ${label}`}
+                          onClick={() => setExpandedDay(isExpanded ? null : key)}
+                          className="btn-ghost text-sm px-3 tabular"
+                          aria-expanded={isExpanded}
+                          aria-label={`Endre ${label}: ${period.label} ${period.start} til ${period.end}`}
                         >
-                          <Plus size={14} />
+                          {period.start}–{period.end}
                         </button>
-                      )}
-                    </div>
-
-                    {isActive && isExpanded && (
-                      <div className="px-3.5 pb-3.5 space-y-2.5 animate-fade-in">
-                        <input
-                          type="text"
-                          value={period?.label ?? ''}
-                          onChange={e => updateDayPeriod(key, 'label', e.target.value)}
-                          placeholder="Navn (f.eks. Skole, Jobb)"
-                          className="w-full px-3 py-2 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <div className="flex gap-2">
-                          <div className="flex-1">
-                            <p className="text-[11px] text-gray-400 mb-1">Fra</p>
-                            <input
-                              type="time"
-                              value={period?.start ?? '08:00'}
-                              onChange={e => updateDayPeriod(key, 'start', e.target.value)}
-                              className="w-full px-3 py-2 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <p className="text-[11px] text-gray-400 mb-1">Til</p>
-                            <input
-                              type="time"
-                              value={period?.end ?? '16:00'}
-                              onChange={e => updateDayPeriod(key, 'end', e.target.value)}
-                              className="w-full px-3 py-2 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            />
-                          </div>
-                        </div>
-                      </div>
+                        <button onClick={() => removeDay(key)} className="icon-btn" aria-label={`Fjern ${label}`}>
+                          <X size={16} />
+                        </button>
+                      </>
+                    ) : (
+                      <button onClick={() => addDay(key)} className="icon-btn" aria-label={`Legg til ${label}`}>
+                        <Plus size={16} />
+                      </button>
                     )}
                   </div>
-                )
-              })}
-            </div>
-          </div>
+                  {period && isExpanded && (
+                    <div className="px-4 pb-4 space-y-2 animate-fade-in">
+                      <input
+                        type="text"
+                        value={period.label}
+                        onChange={e => updateDayPeriod(key, 'label', e.target.value)}
+                        placeholder="Navn, f.eks. Skole"
+                        aria-label="Navn"
+                        className="field py-2 text-sm"
+                      />
+                      <div className="flex gap-2">
+                        <label className="flex-1">
+                          <span className="text-sm text-subtle block mb-1">Fra</span>
+                          <input type="time" value={period.start} onChange={e => updateDayPeriod(key, 'start', e.target.value)} className="field py-2 text-sm tabular" />
+                        </label>
+                        <label className="flex-1">
+                          <span className="text-sm text-subtle block mb-1">Til</span>
+                          <input type="time" value={period.end} onChange={e => updateDayPeriod(key, 'end', e.target.value)} className="field py-2 text-sm tabular" />
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </section>
 
-          {/* Theme */}
-          <div>
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">
-              Tema
-            </label>
-            <div className="flex gap-2 bg-gray-100 dark:bg-gray-900 rounded-2xl p-1.5">
-              {([
-                { value: 'light' as const, label: 'Lyst', icon: '\u2600\uFE0F' },
-                { value: 'dark' as const, label: 'M\u00F8rkt', icon: '\u{1F319}' },
-                { value: 'auto' as const, label: 'Auto', icon: '\u{1F4F1}' },
-              ]).map(theme => (
-                <button
-                  key={theme.value}
-                  onClick={() => updateSettings({ theme: theme.value })}
-                  className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 ${
-                    settings.theme === theme.value
-                      ? 'bg-white dark:bg-gray-700 shadow-md text-gray-900 dark:text-white'
-                      : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
-                  }`}
-                >
-                  <span className="text-base">{theme.icon}</span>
-                  {theme.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Notifications */}
-          <div>
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">
-              Varsler
-            </label>
-            {notifStatus === 'granted' ? (
-              <div className="flex items-center gap-3 p-4 rounded-2xl border-2 border-green-100 dark:border-green-900/30 text-green-600">
-                <Bell size={18} />
-                <span className="font-semibold text-sm">Varsler er aktivert</span>
-              </div>
-            ) : notifStatus === 'denied' ? (
-              <div className="flex items-center gap-3 p-4 rounded-2xl border-2 border-red-100 dark:border-red-900/30 text-red-500">
-                <BellOff size={18} />
-                <div>
-                  <p className="font-semibold text-sm">Varsler er blokkert</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">Endre i nettleser-/telefoninnstillinger</p>
-                </div>
-              </div>
-            ) : (
+        {/* Utseende */}
+        <section aria-labelledby="set-theme">
+          <h3 id="set-theme" className="label mb-3">Utseende</h3>
+          <div className="flex gap-1 bg-sunken rounded-xl p-1" role="radiogroup" aria-label="Tema">
+            {([
+              { value: 'light' as const, label: 'Lyst' },
+              { value: 'dark' as const, label: 'Mørkt' },
+              { value: 'auto' as const, label: 'Som enheten' },
+            ]).map(theme => (
               <button
-                onClick={handleEnableNotifications}
-                className="w-full flex items-center gap-3 p-4 rounded-2xl border-2 border-indigo-100 dark:border-indigo-900/30 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all active:scale-[0.98]"
+                key={theme.value}
+                role="radio"
+                aria-checked={settings.theme === theme.value}
+                onClick={() => updateSettings({ theme: theme.value })}
+                className={segmented(settings.theme === theme.value)}
               >
-                <Bell size={18} />
-                <span className="font-semibold text-sm">Aktiver varsler</span>
+                {theme.label}
               </button>
-            )}
+            ))}
           </div>
+        </section>
 
-          {/* Clear data */}
-          <div>
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 block">
-              Data
-            </label>
-            <button
-              onClick={() => setShowClearConfirm(true)}
-              className="w-full flex items-center gap-3 p-4 rounded-2xl border-2 border-red-100 dark:border-red-900/30 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all active:scale-[0.98]"
-            >
-              <Trash2 size={18} />
-              <span className="font-semibold text-sm">Slett alle oppgaver og rutiner</span>
+        {/* Varsler */}
+        <section aria-labelledby="set-notif">
+          <h3 id="set-notif" className="label mb-3">Varsler</h3>
+          {notifStatus === 'granted' ? (
+            <p className="flex items-center gap-3 text-sm min-h-[48px]">
+              <Bell size={18} className="text-success" /> Varsler er på
+            </p>
+          ) : notifStatus === 'denied' ? (
+            <p className="flex items-start gap-3 text-sm min-h-[48px]">
+              <BellOff size={18} className="text-muted mt-0.5" />
+              <span>
+                <span className="block font-medium">Varsler er blokkert</span>
+                <span className="block text-subtle">Slå dem på i innstillingene for nettleseren eller telefonen.</span>
+              </span>
+            </p>
+          ) : (
+            <button onClick={handleEnableNotifications} className="btn-secondary w-full">
+              <Bell size={18} /> Slå på varsler
             </button>
-          </div>
-        </div>
+          )}
+        </section>
+
+        {/* Data */}
+        <section aria-labelledby="set-data">
+          <h3 id="set-data" className="label mb-3">Data</h3>
+          <button onClick={() => setShowClearConfirm(true)} className="btn-secondary w-full text-danger">
+            <Trash2 size={18} /> Slett alle oppgaver
+          </button>
+        </section>
       </div>
 
       <ConfirmDialog
         open={showClearConfirm}
-        title="Slett all data"
-        message="Dette sletter alle oppgaver og rutiner permanent. Er du sikker?"
+        title="Slette alle oppgaver?"
+        message="Alle oppgaver og rutiner slettes for godt. Aktiviteter, energilogg og innstillinger beholdes."
+        confirmLabel="Slett alt"
         onConfirm={handleClearData}
         onCancel={() => setShowClearConfirm(false)}
       />
-    </div>
+    </Sheet>
   )
 }
