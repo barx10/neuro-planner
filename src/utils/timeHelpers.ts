@@ -1,17 +1,14 @@
 import { format, parse, addMinutes } from 'date-fns'
-import { nb } from 'date-fns/locale'
-
-export function formatTime(time: string): string {
-  return time
-}
 
 export function getEndTime(startTime: string, durationMinutes: number): string {
   const date = parse(startTime, 'HH:mm', new Date())
   return format(addMinutes(date, durationMinutes), 'HH:mm')
 }
 
-export function formatDate(date: string): string {
-  return format(new Date(date), 'EEEE d. MMMM', { locale: nb })
+// "YYYY-MM-DD" som lokal dato. new Date("YYYY-MM-DD") tolkes som UTC og kan gi feil dag.
+export function parseDate(date: string): Date {
+  const [y, m, d] = date.split('-').map(Number)
+  return new Date(y, m - 1, d)
 }
 
 export function todayString(): string {
@@ -22,7 +19,7 @@ export function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes} min`
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
-  return m > 0 ? `${h}t ${m}min` : `${h}t`
+  return m > 0 ? `${h} t ${m} min` : `${h} t`
 }
 
 export function formatSeconds(seconds: number): string {

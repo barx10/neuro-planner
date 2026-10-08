@@ -55,7 +55,7 @@ function notify(title: string, body: string, tag?: string) {
 /** Send encouragement as notification + sound (works with screen off) */
 export function notifyEncouragement(emoji: string, text: string) {
   playDing('soft')
-  notify(`${emoji} ${text}`, 'Fortsett det gode arbeidet!')
+  notify(`${emoji} ${text}`.trim(), 'Fortsett i ditt tempo.')
 }
 
 /** Send completion notification + celebration sound */
@@ -71,11 +71,6 @@ function getTaskTimeMs(task: Task, dateStr: string): number {
   d.setHours(hours, minutes, 0, 0)
   return d.getTime()
 }
-
-function getTaskEndMs(task: Task, dateStr: string): number {
-  return getTaskTimeMs(task, dateStr) + task.durationMinutes * 60 * 1000
-}
-
 
 export function clearScheduledNotifications() {
   activeTimeouts.forEach(id => clearTimeout(id))
@@ -106,31 +101,4 @@ export function scheduleNotificationsForTasks(tasks: Task[], dateStr: string) {
       activeTimeouts.push(id)
     }
   }
-}
-
-// Helper to determine the currently active task
-export function getCurrentTask(tasks: Task[], dateStr: string): Task | null {
-  const now = Date.now()
-  const today = new Date().toISOString().split('T')[0]
-  if (dateStr !== today) return null
-
-  for (const task of tasks) {
-    if (task.completed) continue
-    const startMs = getTaskTimeMs(task, dateStr)
-    const endMs = getTaskEndMs(task, dateStr)
-    if (now >= startMs && now < endMs) return task
-  }
-
-  // If no task is active right now, find the next upcoming one
-  let nextTask: Task | null = null
-  let nextStart = Infinity
-  for (const task of tasks) {
-    if (task.completed) continue
-    const startMs = getTaskTimeMs(task, dateStr)
-    if (startMs > now && startMs < nextStart) {
-      nextStart = startMs
-      nextTask = task
-    }
-  }
-  return nextTask
 }

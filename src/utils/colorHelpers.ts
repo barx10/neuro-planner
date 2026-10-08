@@ -1,12 +1,13 @@
+// Dempede farger. Brukes kun som markør (stripe, prikk, ring), aldri som tekstfarge.
 export const TASK_COLORS = [
-  '#ef4444', // red
-  '#f59e0b', // amber
-  '#22c55e', // green
-  '#3b82f6', // blue
-  '#6366f1', // indigo
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-  '#14b8a6', // teal
+  '#e5484d', // rød
+  '#f2a33a', // rav
+  '#30a46c', // grønn
+  '#12a594', // blågrønn
+  '#3e63dd', // blå
+  '#6e56cf', // fiolett
+  '#d6409f', // rosa
+  '#8d8d86', // sand
 ]
 
 export function hexToRgba(hex: string, alpha: number): string {

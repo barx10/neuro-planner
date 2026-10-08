@@ -1,27 +1,27 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { DndContext, closestCenter, type DragEndEvent } from '@dnd-kit/core'
-import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
-import { Plus, ChevronLeft, ChevronRight, Trophy, Sunrise, Sun, Moon } from 'lucide-react'
-import { format, addDays, subDays, startOfWeek } from 'date-fns'
+import { useState, useEffect, useCallback } from 'react'
+import { Plus, ChevronLeft, ChevronRight, Sparkles, Play, CheckCircle2 } from 'lucide-react'
+import { format, addDays, subDays, startOfWeek, isSameDay } from 'date-fns'
 import { nb } from 'date-fns/locale'
 import { useTaskStore } from '../../store/taskStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import type { Task, BlockedPeriod } from '../../types'
-import { formatDate, todayString, getBlockedPeriodForDate } from '../../utils/timeHelpers'
+import { todayString, getBlockedPeriodForDate, parseDate, getEndTime } from '../../utils/timeHelpers'
 import { useDayOverride } from '../../hooks/useDayOverride'
-import { scheduleNotificationsForTasks, getCurrentTask, clearScheduledNotifications } from '../../hooks/useNotifications'
-import { TaskCard } from './TaskCard'
+import { scheduleNotificationsForTasks, clearScheduledNotifications } from '../../hooks/useNotifications'
+import { db } from '../../db/database'
+import { TaskCard, type TimeStatus } from './TaskCard'
 import { TaskForm } from './TaskForm'
 import { FocusTimer } from './FocusTimer'
 import { PomodoroTimer } from './PomodoroTimer'
 import { AiPlanner } from '../ai/AiPlanner'
+import { MoodSelector } from '../ui/MoodSelector'
 
 type TimeSlot = 'morgen' | 'dag' | 'kveld'
 
-const SLOTS: { key: TimeSlot; label: string; icon: typeof Sunrise; color: string; defaultTime: string; emoji: string }[] = [
-  { key: 'morgen', label: 'Morgen', icon: Sunrise, color: '#f59e0b', defaultTime: '07:00', emoji: '\u{1F305}' },
-  { key: 'dag', label: 'Dag', icon: Sun, color: '#6366f1', defaultTime: '12:00', emoji: '\u2600\uFE0F' },
-  { key: 'kveld', label: 'Kveld', icon: Moon, color: '#8b5cf6', defaultTime: '18:00', emoji: '\u{1F319}' },
+const SLOTS: { key: TimeSlot; label: string; defaultTime: string }[] = [
+  { key: 'morgen', label: 'Morgen', defaultTime: '07:00' },
+  { key: 'dag', label: 'Dag', defaultTime: '12:00' },
+  { key: 'kveld', label: 'Kveld', defaultTime: '18:00' },
 ]
 
 function getSlot(startTime: string): TimeSlot {
@@ -31,400 +31,308 @@ function getSlot(startTime: string): TimeSlot {
   return 'kveld'
 }
 
-function getTimeStatus(task: Task, dateStr: string): { type: 'starts-in' | 'in-progress'; minutes: number } | undefined {
+function getTimeStatus(task: Task, now: Date): TimeStatus | undefined {
   if (task.completed) return undefined
-  const today = todayString()
-  if (dateStr !== today) return undefined
-
-  const now = new Date()
   const [sh, sm] = task.startTime.split(':').map(Number)
   const startMs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), sh, sm).getTime()
-  const endMs = startMs + task.durationMinutes * 60 * 1000
+  const endMs = startMs + task.durationMinutes * 60_000
   const nowMs = now.getTime()
-
-  if (nowMs >= startMs && nowMs < endMs) {
-    return { type: 'in-progress', minutes: Math.ceil((endMs - nowMs) / 60000) }
-  }
+  if (nowMs >= startMs && nowMs < endMs) return { type: 'in-progress', minutes: Math.ceil((endMs - nowMs) / 60_000) }
   if (nowMs < startMs) {
-    const diff = Math.round((startMs - nowMs) / 60000)
+    const diff = Math.round((startMs - nowMs) / 60_000)
     if (diff <= 60) return { type: 'starts-in', minutes: diff }
   }
   return undefined
 }
 
-const CONFETTI_COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#22c55e', '#3b82f6']
-
-function ConfettiParticles() {
-  const particles = Array.from({ length: 12 }, (_, i) => ({
-    id: i,
-    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-    left: `${8 + (i / 11) * 84}%`,
-    delay: `${(i * 0.07).toFixed(2)}s`,
-    size: i % 3 === 0 ? 8 : i % 3 === 1 ? 6 : 5,
-  }))
-
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
-      {particles.map(p => (
-        <div
-          key={p.id}
-          className="absolute top-1/2 rounded-full animate-confetti-fall"
-          style={{
-            left: p.left,
-            width: p.size,
-            height: p.size,
-            backgroundColor: p.color,
-            animationDelay: p.delay,
-          }}
-        />
-      ))}
-    </div>
-  )
+// Første uferdige oppgave som pågår, ellers den neste som ikke har startet.
+function findFocusTask(tasks: Task[], statuses: Record<string, TimeStatus>, now: Date): { task: Task; current: boolean } | null {
+  const current = tasks.find(t => statuses[t.id]?.type === 'in-progress')
+  if (current) return { task: current, current: true }
+  const hhmm = format(now, 'HH:mm')
+  const next = tasks.find(t => !t.completed && t.startTime > hhmm)
+  return next ? { task: next, current: false } : null
 }
 
-function BlockedBanner({
+function ScheduleBanner({
   period,
+  isFree,
   hasOverride,
   onSetFree,
   onClearOverride,
-  onToggleMenu,
-  showMenu,
 }: {
-  period: BlockedPeriod
+  period: BlockedPeriod | null
+  isFree: boolean
   hasOverride: boolean
   onSetFree: () => void
   onClearOverride: () => void
-  onToggleMenu: () => void
-  showMenu: boolean
 }) {
+  if (!period && !isFree) return null
   return (
-    <div className="mb-4 rounded-2xl overflow-hidden animate-fade-in">
-      <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-200 dark:border-amber-800/40">
-        <span className="text-lg">🏫</span>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm text-amber-800 dark:text-amber-200 truncate">
-            {period.label}
-          </p>
-          <p className="text-[11px] text-amber-600 dark:text-amber-400">
-            {period.start}–{period.end} · AI planlegger etter dette
-          </p>
-        </div>
-        <button
-          onClick={onToggleMenu}
-          className="px-3 py-1.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-all min-h-[36px]"
-        >
-          Endre
-        </button>
-      </div>
-      {showMenu && (
-        <div className="bg-white dark:bg-gray-800 border-2 border-t-0 border-amber-200 dark:border-amber-800/40 rounded-b-2xl p-3 space-y-2 animate-fade-in">
-          <button
-            onClick={() => { onSetFree(); onToggleMenu() }}
-            className="w-full py-2.5 px-3 rounded-xl text-sm font-semibold bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 transition-all text-left"
-          >
-            Ledig i dag (fri dag)
-          </button>
-          {hasOverride && (
-            <button
-              onClick={() => { onClearOverride(); onToggleMenu() }}
-              className="w-full py-2.5 px-3 rounded-xl text-sm font-semibold bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-100 transition-all text-left"
-            >
-              Tilbake til ukeplan
-            </button>
-          )}
-        </div>
+    <div className="flex items-center gap-3 pl-4 pr-1 mb-4 rounded-xl bg-sunken min-h-[52px]">
+      <p className="flex-1 text-sm">
+        {period ? (
+          <>
+            <span className="font-semibold">{period.label}</span>{' '}
+            <span className="text-muted tabular">{period.start}–{period.end}</span>
+          </>
+        ) : (
+          <span className="font-semibold">Fri i dag</span>
+        )}
+      </p>
+      {period && !hasOverride && (
+        <button onClick={onSetFree} className="btn-ghost text-sm">Ta fri i dag</button>
       )}
-    </div>
-  )
-}
-
-function FreeDayBanner({ onClearOverride }: { onClearOverride: () => void }) {
-  return (
-    <div className="mb-4 flex items-center gap-3 px-4 py-3 rounded-2xl bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800/40 animate-fade-in">
-      <span className="text-lg">🟢</span>
-      <p className="flex-1 text-sm font-semibold text-green-700 dark:text-green-300">Ledig i dag</p>
-      <button
-        onClick={onClearOverride}
-        className="text-xs text-green-600 dark:text-green-400 hover:underline min-h-[36px] px-2"
-      >
-        Angre
-      </button>
+      {hasOverride && (
+        <button onClick={onClearOverride} className="btn-ghost text-sm">Angre</button>
+      )}
     </div>
   )
 }
 
 export function DayView() {
   const [date, setDate] = useState(todayString())
-  const [formSlot, setFormSlot] = useState<TimeSlot | null>(null)
+  const [formState, setFormState] = useState<{ defaultTime?: string; task?: Task } | null>(null)
   const [timerTask, setTimerTask] = useState<Task | null>(null)
-  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null)
-  const [timeStatuses, setTimeStatuses] = useState<Record<string, { type: 'starts-in' | 'in-progress'; minutes: number }>>({})
-  const [showConfetti, setShowConfetti] = useState(false)
-  const prevAllDone = useRef(false)
-  const { tasks, loadTasks, reorderTasks } = useTaskStore()
+  const [showAi, setShowAi] = useState(false)
+  const [now, setNow] = useState(() => new Date())
+  const [mood, setMood] = useState<number | undefined>(undefined)
+  const [moodLoaded, setMoodLoaded] = useState(false)
+  const { tasks, loadTasks } = useTaskStore()
   const { settings } = useSettingsStore()
   const { override, setDayFree, clearOverride } = useDayOverride(date)
   const blockedPeriod = getBlockedPeriodForDate(date, settings.weeklySchedule, override)
-  const [showOverrideMenu, setShowOverrideMenu] = useState(false)
 
-  useEffect(() => {
-    setShowOverrideMenu(false)
-  }, [date])
+  const isToday = date === todayString()
 
   useEffect(() => {
     loadTasks(date)
   }, [date, loadTasks])
 
-  // Schedule notifications when tasks change (today only)
   useEffect(() => {
-    const isToday = date === todayString()
-    if (isToday && tasks.length > 0) {
-      scheduleNotificationsForTasks(tasks, date)
-    }
-    return () => clearScheduledNotifications()
-  }, [tasks, date])
+    db.moods.get(todayString()).then(entry => {
+      setMood(entry?.level)
+      setMoodLoaded(true)
+    })
+  }, [])
 
-  // Update "now" indicator and time statuses every 30 seconds
-  const updateCurrentTask = useCallback(() => {
-    const current = getCurrentTask(tasks, date)
-    setCurrentTaskId(current?.id ?? null)
-    const statuses: Record<string, { type: 'starts-in' | 'in-progress'; minutes: number }> = {}
+  useEffect(() => {
+    if (isToday && tasks.length > 0) scheduleNotificationsForTasks(tasks, date)
+    return () => clearScheduledNotifications()
+  }, [tasks, date, isToday])
+
+  const tick = useCallback(() => setNow(new Date()), [])
+  useEffect(() => {
+    const id = setInterval(tick, 30_000)
+    return () => clearInterval(id)
+  }, [tick])
+
+  const statuses: Record<string, TimeStatus> = {}
+  if (isToday) {
     for (const t of tasks) {
-      const s = getTimeStatus(t, date)
+      const s = getTimeStatus(t, now)
       if (s) statuses[t.id] = s
     }
-    setTimeStatuses(statuses)
-  }, [tasks, date])
+  }
+  const focus = isToday ? findFocusTask(tasks, statuses, now) : null
 
-  useEffect(() => {
-    updateCurrentTask()
-    const interval = setInterval(updateCurrentTask, 30_000)
-    return () => clearInterval(interval)
-  }, [updateCurrentTask])
-
-  // Confetti when all tasks are completed
   const completedCount = tasks.filter(t => t.completed).length
   const allDone = tasks.length > 0 && completedCount === tasks.length
 
-  useEffect(() => {
-    if (allDone && !prevAllDone.current) {
-      setShowConfetti(true)
-      setTimeout(() => setShowConfetti(false), 1000)
-    }
-    prevAllDone.current = allDone
-  }, [allDone])
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    const oldIndex = tasks.findIndex(t => t.id === active.id)
-    const newIndex = tasks.findIndex(t => t.id === over.id)
-    reorderTasks(arrayMove(tasks, oldIndex, newIndex))
-  }
-
-  const goToday = () => setDate(todayString())
-  const goPrev = () => setDate(format(subDays(new Date(date), 1), 'yyyy-MM-dd'))
-  const goNext = () => setDate(format(addDays(new Date(date), 1), 'yyyy-MM-dd'))
-
-  const isToday = date === todayString()
-  const progressPercent = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0
-
-  // Week strip
-  const weekStart = startOfWeek(new Date(date), { weekStartsOn: 1 })
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = addDays(weekStart, i)
-    return {
-      dateStr: format(d, 'yyyy-MM-dd'),
-      dayLabel: format(d, 'EEE', { locale: nb }),
-      dayNum: format(d, 'd'),
-    }
-  })
+  const current = parseDate(date)
+  const weekStart = startOfWeek(current, { weekStartsOn: 1 })
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
+  const goTo = (d: Date) => setDate(format(d, 'yyyy-MM-dd'))
 
   return (
-    <div className="max-w-lg mx-auto px-4 pb-24">
-      {/* AI Planner */}
-      <div className="pt-4">
-        <AiPlanner date={date} />
-      </div>
-
-      {/* Fri-dag banner (overstyrt til fri) */}
-      {override !== undefined && override.blockedPeriod === null && (
-        <FreeDayBanner onClearOverride={clearOverride} />
-      )}
-
-      {/* Opptatt-tid banner */}
-      {blockedPeriod && (
-        <BlockedBanner
-          period={blockedPeriod}
-          hasOverride={override !== undefined}
-          onSetFree={setDayFree}
-          onClearOverride={clearOverride}
-          onToggleMenu={() => setShowOverrideMenu(prev => !prev)}
-          showMenu={showOverrideMenu}
-        />
-      )}
-
-      {/* Week strip */}
-      <div className="flex gap-1 py-4">
-        {weekDays.map(({ dateStr, dayLabel, dayNum }) => {
-          const isSelected = dateStr === date
-          const isDayToday = dateStr === todayString()
-          return (
-            <button
-              key={dateStr}
-              onClick={() => setDate(dateStr)}
-              className={`flex-1 flex flex-col items-center py-2 rounded-xl transition-all duration-200 ${
-                isSelected
-                  ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/25'
-                  : isDayToday
-                    ? 'bg-indigo-500/10 text-indigo-500'
-                    : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'
-              }`}
-            >
-              <span className="text-[10px] font-semibold uppercase tracking-wide">{dayLabel}</span>
-              <span className={`text-sm font-bold mt-0.5 ${isSelected ? 'text-white' : ''}`}>{dayNum}</span>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Date navigation */}
-      <div className="flex items-center justify-between pb-4">
-        <button
-          onClick={goPrev}
-          className="p-2.5 rounded-xl glass hover:bg-white/80 dark:hover:bg-white/5 transition-all duration-200 min-w-[48px] min-h-[48px] flex items-center justify-center active:scale-90"
-          aria-label="Forrige dag"
-        >
-          <ChevronLeft size={20} />
-        </button>
-        <div className="text-center">
-          <button
-            onClick={goToday}
-            className="text-lg font-bold capitalize hover:text-indigo-500 transition-colors"
-          >
-            {formatDate(date)}
-          </button>
-          {isToday && (
-            <div className="text-[11px] font-bold text-indigo-500 bg-indigo-500/10 rounded-full px-3 py-0.5 mt-1 inline-block">
-              I dag
-            </div>
-          )}
+    <div className="max-w-lg mx-auto px-4 pt-4">
+      {/* Dato */}
+      <div className="flex items-end justify-between mb-3">
+        <div>
+          <h2 className={`text-2xl font-semibold leading-tight ${isToday ? '' : 'capitalize'}`}>
+            {isToday ? 'I dag' : format(current, 'EEEE', { locale: nb })}
+          </h2>
+          <p className="text-muted">
+            {isToday ? format(current, 'EEEE d. MMMM', { locale: nb }) : format(current, 'd. MMMM', { locale: nb })}
+          </p>
         </div>
-        <button
-          onClick={goNext}
-          className="p-2.5 rounded-xl glass hover:bg-white/80 dark:hover:bg-white/5 transition-all duration-200 min-w-[48px] min-h-[48px] flex items-center justify-center active:scale-90"
-          aria-label="Neste dag"
-        >
-          <ChevronRight size={20} />
+        {!isToday && (
+          <button onClick={() => setDate(todayString())} className="btn-ghost text-accent hover:text-accent">
+            Til i dag
+          </button>
+        )}
+      </div>
+
+      {/* Ukestripe */}
+      <div className="flex items-center -mx-2 mb-5">
+        <button onClick={() => goTo(subDays(current, 7))} className="icon-btn shrink-0 min-w-[40px]" aria-label="Forrige uke">
+          <ChevronLeft size={18} />
+        </button>
+        <div className="flex-1 grid grid-cols-7">
+          {weekDays.map(d => {
+            const selected = isSameDay(d, current)
+            const dayIsToday = format(d, 'yyyy-MM-dd') === todayString()
+            return (
+              <button
+                key={d.toISOString()}
+                onClick={() => goTo(d)}
+                aria-label={format(d, 'EEEE d. MMMM', { locale: nb })}
+                aria-current={selected ? 'date' : undefined}
+                className="flex flex-col items-center py-1 min-h-[52px] rounded-xl"
+              >
+                <span className={`text-xs ${selected ? 'text-ink font-semibold' : 'text-subtle'}`}>
+                  {format(d, 'EEEEE', { locale: nb }).toUpperCase()}
+                </span>
+                <span
+                  className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center text-sm tabular ${
+                    selected
+                      ? 'bg-ink text-bg font-semibold'
+                      : dayIsToday
+                        ? 'text-accent font-semibold'
+                        : 'text-ink'
+                  }`}
+                >
+                  {format(d, 'd')}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        <button onClick={() => goTo(addDays(current, 7))} className="icon-btn shrink-0 min-w-[40px]" aria-label="Neste uke">
+          <ChevronRight size={18} />
         </button>
       </div>
 
-      {/* Progress */}
-      {tasks.length > 0 && (
-        <div className="mb-5 glass rounded-2xl p-4 animate-fade-in relative">
-          {showConfetti && <ConfettiParticles />}
-          <div className="flex justify-between items-center mb-2">
-            <div className="flex items-center gap-2">
-              {allDone && <Trophy size={16} className="text-amber-500" />}
-              <span className="text-sm font-semibold">
-                {allDone ? 'Alt fullført! 🎉' : `${completedCount} av ${tasks.length}`}
-              </span>
-            </div>
-            <span className="text-sm font-bold text-indigo-500">{progressPercent}%</span>
+      <ScheduleBanner
+        period={blockedPeriod}
+        isFree={override !== undefined && override.blockedPeriod === null}
+        hasOverride={override !== undefined}
+        onSetFree={setDayFree}
+        onClearOverride={clearOverride}
+      />
+
+      {isToday && moodLoaded && mood === undefined && (
+        <div className="mb-5">
+          <MoodSelector value={mood} onChange={setMood} />
+        </div>
+      )}
+
+      {/* Nå / neste */}
+      {focus && (
+        <section className="mb-6 rounded-2xl bg-ink text-bg p-4 dark:bg-sunken dark:text-ink dark:ring-1 dark:ring-accent/40" aria-label={focus.current ? 'Nå' : 'Neste'}>
+          <p className="text-sm opacity-75 tabular">
+            {focus.current
+              ? `Nå · ${statuses[focus.task.id].minutes} min igjen`
+              : `Neste · ${focus.task.startTime}${statuses[focus.task.id] ? ` (om ${statuses[focus.task.id].minutes} min)` : ''}`}
+          </p>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="flex-1 text-lg font-semibold leading-snug">
+              <span aria-hidden className="mr-2">{focus.task.emoji}</span>
+              {focus.task.title}
+            </p>
+            <button
+              onClick={() => setTimerTask(focus.task)}
+              className="btn shrink-0 bg-bg text-ink hover:bg-bg/90 dark:bg-accent dark:text-on-accent dark:hover:bg-accent/90"
+            >
+              <Play size={16} fill="currentColor" /> Start
+            </button>
           </div>
-          <div className="h-3 bg-gray-200/50 dark:bg-gray-700/50 rounded-full overflow-hidden">
+          <p className="text-sm opacity-75 mt-1 tabular">
+            {focus.task.startTime}–{getEndTime(focus.task.startTime, focus.task.durationMinutes)}
+          </p>
+        </section>
+      )}
+
+      {/* Fremdrift */}
+      {tasks.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between text-sm mb-2">
+            <span className="text-muted tabular" aria-live="polite">
+              {allDone ? (
+                <span className="inline-flex items-center gap-1.5 text-success font-semibold">
+                  <CheckCircle2 size={16} /> Alt er gjort. Godt jobbet.
+                </span>
+              ) : (
+                `${completedCount} av ${tasks.length} gjort`
+              )}
+            </span>
+          </div>
+          <div className="h-1.5 bg-sunken rounded-full overflow-hidden" aria-hidden>
             <div
-              className="h-full rounded-full transition-all duration-700 ease-out"
-              style={{
-                width: `${progressPercent}%`,
-                background: allDone
-                  ? 'linear-gradient(90deg, #22c55e, #10b981)'
-                  : 'linear-gradient(90deg, #6366f1, #8b5cf6, #a855f7)',
-              }}
+              className={`h-full rounded-full transition-[width] duration-500 ${allDone ? 'bg-success' : 'bg-accent'}`}
+              style={{ width: `${(completedCount / tasks.length) * 100}%` }}
             />
           </div>
         </div>
       )}
 
-      {/* Time slot sections */}
-      <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-          {SLOTS.map(slot => {
-            const slotTasks = tasks.filter(t => getSlot(t.startTime) === slot.key)
-            const Icon = slot.icon
-            return (
-              <div key={slot.key} className="mb-5">
-                {/* Section header */}
-                <div className="flex items-center justify-between mb-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className="w-8 h-8 rounded-xl flex items-center justify-center"
-                      style={{ backgroundColor: slot.color + '18' }}
-                    >
-                      <Icon size={16} style={{ color: slot.color }} />
-                    </div>
-                    <h3 className="font-bold text-sm">{slot.label}</h3>
-                    {slotTasks.length > 0 && (
-                      <span className="text-[11px] text-gray-300 dark:text-gray-600 font-semibold">
-                        {slotTasks.filter(t => t.completed).length}/{slotTasks.length}
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => setFormSlot(slot.key)}
-                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-all active:scale-90 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                    style={{ color: slot.color }}
-                    aria-label={`Legg til i ${slot.label}`}
-                  >
-                    <Plus size={20} strokeWidth={2.5} />
-                  </button>
-                </div>
+      {/* Tom dag */}
+      {tasks.length === 0 && (
+        <div className="card p-6 mb-6 text-center">
+          <p className="font-semibold">Ingenting planlagt ennå</p>
+          <p className="text-sm text-muted mt-1 mb-5">Legg til én ting, eller få hjelp til å sette opp dagen.</p>
+          <div className="flex flex-col gap-2">
+            <button onClick={() => setFormState({ defaultTime: '09:00' })} className="btn-primary">
+              <Plus size={18} /> Legg til oppgave
+            </button>
+            <button onClick={() => setShowAi(true)} className="btn-secondary">
+              <Sparkles size={16} /> Planlegg med AI
+            </button>
+          </div>
+        </div>
+      )}
 
-                {/* Tasks */}
-                {slotTasks.length > 0 ? (
-                  slotTasks.map(task => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      isNow={task.id === currentTaskId}
-                      timeStatus={timeStatuses[task.id]}
-                      onStartTimer={setTimerTask}
-                    />
-                  ))
-                ) : (
-                  <button
-                    onClick={() => setFormSlot(slot.key)}
-                    className="w-full rounded-2xl border-2 border-dashed p-4 text-center text-sm transition-all active:scale-[0.98] group"
-                    style={{
-                      borderColor: slot.color + '30',
-                      color: slot.color + '60',
-                    }}
-                    onMouseEnter={e => {
-                      ;(e.currentTarget as HTMLButtonElement).style.borderColor = slot.color + '60'
-                      ;(e.currentTarget as HTMLButtonElement).style.color = slot.color + 'aa'
-                    }}
-                    onMouseLeave={e => {
-                      ;(e.currentTarget as HTMLButtonElement).style.borderColor = slot.color + '30'
-                      ;(e.currentTarget as HTMLButtonElement).style.color = slot.color + '60'
-                    }}
-                  >
-                    <span className="text-lg mb-1 block">{slot.emoji}</span>
-                    <span className="font-medium">Legg til {slot.label.toLowerCase()}-aktivitet</span>
-                  </button>
-                )}
-              </div>
-            )
-          })}
-        </SortableContext>
-      </DndContext>
+      {/* Dagsdeler */}
+      {tasks.length > 0 && SLOTS.map(slot => {
+        const slotTasks = tasks.filter(t => getSlot(t.startTime) === slot.key)
+        return (
+          <section key={slot.key} className="mb-6" aria-labelledby={`slot-${slot.key}`}>
+            <div className="flex items-center justify-between mb-1">
+              <h3 id={`slot-${slot.key}`} className="label">
+                {slot.label}
+              </h3>
+              <button
+                onClick={() => setFormState({ defaultTime: slot.defaultTime })}
+                className="icon-btn -mr-3"
+                aria-label={`Legg til oppgave om ${slot.label.toLowerCase()}en`}
+              >
+                <Plus size={20} />
+              </button>
+            </div>
+            {slotTasks.length > 0 ? (
+              <ul className="space-y-2">
+                {slotTasks.map(task => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    timeStatus={statuses[task.id]}
+                    onStartTimer={setTimerTask}
+                    onEdit={t => setFormState({ task: t })}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-subtle pl-[60px]">Ingenting her</p>
+            )}
+          </section>
+        )
+      })}
 
-      {formSlot && (
+      {tasks.length > 0 && (
+        <button onClick={() => setShowAi(true)} className="btn-ghost w-full mb-4">
+          <Sparkles size={16} /> Planlegg resten med AI
+        </button>
+      )}
+
+      {formState && (
         <TaskForm
           date={date}
-          defaultTime={SLOTS.find(s => s.key === formSlot)!.defaultTime}
-          onClose={() => setFormSlot(null)}
+          defaultTime={formState.defaultTime}
+          task={formState.task}
+          onClose={() => setFormState(null)}
         />
       )}
+      {showAi && <AiPlanner date={date} onClose={() => setShowAi(false)} />}
       {timerTask && (
         timerTask.durationMinutes >= 25
           ? <PomodoroTimer task={timerTask} onClose={() => setTimerTask(null)} />

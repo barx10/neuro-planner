@@ -1,37 +1,37 @@
 import { useState } from 'react'
-import { Sparkles, Loader2, Plus, Check, Clock, Pencil, Brain } from 'lucide-react'
+import { Sparkles, Loader2, Check, Pencil } from 'lucide-react'
 import { generateDayPlan } from '../../hooks/useAi'
 import { useTaskStore } from '../../store/taskStore'
-import { TASK_COLORS, hexToRgba } from '../../utils/colorHelpers'
+import { TASK_COLORS } from '../../utils/colorHelpers'
 import { useSettingsStore } from '../../store/settingsStore'
 import { useDayOverride } from '../../hooks/useDayOverride'
-import { getBlockedPeriodForDate } from '../../utils/timeHelpers'
+import { getBlockedPeriodForDate, getEndTime } from '../../utils/timeHelpers'
+import { Sheet } from '../ui/Sheet'
 
 interface AiPlannerProps {
   date: string
+  onClose: () => void
 }
 
-export function AiPlanner({ date }: AiPlannerProps) {
+type PlanItem = { title: string; emoji: string; startTime: string; durationMinutes: number }
+
+export function AiPlanner({ date, onClose }: AiPlannerProps) {
   const [input, setInput] = useState('')
-  const [plan, setPlan] = useState<Array<{
-    title: string
-    emoji: string
-    startTime: string
-    durationMinutes: number
-  }>>([])
+  const [plan, setPlan] = useState<PlanItem[]>([])
   const [analysis, setAnalysis] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [applied, setApplied] = useState(false)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
-
-  const updatePlanItem = (index: number, field: 'startTime' | 'durationMinutes', value: string | number) => {
-    setPlan(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item))
-  }
   const { addTask, tasks } = useTaskStore()
   const { settings } = useSettingsStore()
   const { override } = useDayOverride(date)
   const blockedPeriod = getBlockedPeriodForDate(date, settings.weeklySchedule, override)
+  const hasKey = !!settings.apiKeys[settings.aiProvider]
+
+  const updatePlanItem = (index: number, field: 'startTime' | 'durationMinutes', value: string | number) => {
+    setPlan(prev => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)))
+  }
 
   const handleGenerate = async () => {
     if (!input.trim()) return
@@ -43,7 +43,7 @@ export function AiPlanner({ date }: AiPlannerProps) {
       setAnalysis(result.analysis)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Ukjent feil'
-      setError(`Kunne ikke lage plan: ${msg}`)
+      setError(`Fikk ikke laget en plan: ${msg}`)
     }
     setLoading(false)
   }
@@ -64,132 +64,107 @@ export function AiPlanner({ date }: AiPlannerProps) {
         order: tasks.length + i,
       })
     }
-    setApplied(true)
     setLoading(false)
-    setTimeout(() => {
-      setPlan([])
-      setInput('')
-      setAnalysis('')
-      setApplied(false)
-    }, 2000)
+    setApplied(true)
+    setTimeout(onClose, 1200)
   }
 
-  return (
-    <div className="glass rounded-2xl p-4 mb-5 animate-fade-in">
-      <div className="flex items-center gap-2.5 mb-3">
-        <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-          <Sparkles size={16} className="text-indigo-500" />
-        </div>
-        <h3 className="font-bold text-sm">AI-planlegger</h3>
-      </div>
+  const footer = applied ? (
+    <p className="flex items-center justify-center gap-2 min-h-[48px] font-semibold text-success" role="status">
+      <Check size={18} /> {plan.length} oppgaver lagt til
+    </p>
+  ) : plan.length > 0 ? (
+    <div className="flex gap-3">
+      <button onClick={() => { setPlan([]); setAnalysis('') }} className="btn-secondary" disabled={loading}>
+        Prøv igjen
+      </button>
+      <button onClick={handleApply} disabled={loading} className="btn-primary flex-1">
+        {loading && <Loader2 size={16} className="animate-spin" />}
+        Legg til {plan.length} oppgaver
+      </button>
+    </div>
+  ) : (
+    <button onClick={handleGenerate} disabled={loading || !input.trim() || !hasKey} className="btn-primary w-full">
+      {loading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+      {loading ? 'Lager plan …' : 'Lag plan'}
+    </button>
+  )
 
-      {applied ? (
-        <div className="flex items-center gap-2 text-green-500 py-2 animate-fade-in">
-          <Check size={18} />
-          <span className="text-sm font-semibold">{plan.length} oppgaver lagt til!</span>
-        </div>
-      ) : (
-        <>
+  return (
+    <Sheet title="Planlegg med AI" onClose={onClose} footer={footer}>
+      {plan.length === 0 ? (
+        <div className="space-y-3">
+          <p className="text-sm text-muted">
+            Skriv fritt hva du skal eller må gjøre. Du får et forslag med tider og pauser som du kan justere før det legges inn.
+          </p>
+          {blockedPeriod && (
+            <p className="text-sm text-muted">
+              Opptatt {blockedPeriod.start}–{blockedPeriod.end} ({blockedPeriod.label}). Planen legges utenom.
+            </p>
+          )}
           <textarea
             value={input}
             onChange={e => setInput(e.target.value)}
-            placeholder="Beskriv dagen din, så lager AI en plan..."
+            placeholder="F.eks. lekser i matte, rydde rommet, trene, ringe bestemor"
             rows={4}
-            className="w-full px-3.5 py-3 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-y text-sm placeholder:text-gray-300 dark:placeholder:text-gray-600"
+            aria-label="Beskriv dagen"
+            className="field resize-none"
+            autoFocus
           />
-          <button
-            onClick={handleGenerate}
-            disabled={loading || !input.trim()}
-            className="w-full mt-2.5 py-3 btn-primary min-h-[48px] flex items-center justify-center gap-2 text-sm"
-          >
-            {loading && !plan.length ? (
-              <><Loader2 size={16} className="animate-spin" /> Lager plan...</>
-            ) : (
-              <><Sparkles size={16} /> Lag dagplan</>
-            )}
-          </button>
-
-          {error && (
-            <p className="text-sm text-red-500 mt-2.5 bg-red-50 dark:bg-red-900/20 rounded-xl p-3">{error}</p>
+          {!hasKey && (
+            <p className="text-sm text-muted">Legg inn en API-nøkkel under Innstillinger for å bruke AI.</p>
           )}
-
-          {plan.length > 0 && (
-            <div className="mt-3 space-y-2 animate-slide-up">
-              {analysis && (
-                <div className="flex gap-2.5 p-3.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/30 animate-fade-in">
-                  <Brain size={16} className="text-indigo-500 mt-0.5 shrink-0" />
-                  <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{analysis}</p>
-                </div>
-              )}
-              {plan.map((item, i) => (
-                <div
-                  key={i}
-                  className="rounded-xl border border-white/40 dark:border-white/5 animate-slide-up overflow-hidden"
-                  style={{
-                    background: `linear-gradient(135deg, ${hexToRgba(TASK_COLORS[i % TASK_COLORS.length], 0.08)}, transparent)`,
-                    animationDelay: `${i * 60}ms`,
-                    animationFillMode: 'both',
-                  }}
-                >
-                  <div className="flex items-center gap-3 p-3">
-                    <span className="text-lg">{item.emoji}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate">{item.title}</p>
-                      <p className="text-[11px] text-gray-400">
-                        {item.startTime} · {item.durationMinutes} min
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setEditingIndex(editingIndex === i ? null : i)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                      aria-label="Endre tid"
-                    >
-                      {editingIndex === i ? <Check size={14} className="text-green-500" /> : <Pencil size={14} className="text-gray-400" />}
-                    </button>
+          {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {analysis && <p className="text-sm text-muted leading-relaxed">{analysis}</p>}
+          <ul className="divide-y divide-line border border-line rounded-2xl">
+            {plan.map((item, i) => (
+              <li key={i}>
+                <div className="flex items-center gap-3 pl-4 pr-1 py-2">
+                  <span className="w-1 self-stretch rounded-full" style={{ backgroundColor: TASK_COLORS[i % TASK_COLORS.length] }} aria-hidden />
+                  <span aria-hidden>{item.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">{item.title}</p>
+                    <p className="text-sm text-subtle tabular">
+                      {item.startTime}–{getEndTime(item.startTime, item.durationMinutes)}
+                    </p>
                   </div>
-                  {editingIndex === i && (
-                    <div className="flex items-center gap-3 px-3 pb-3 pt-0 animate-fade-in">
-                      <div className="flex items-center gap-1.5">
-                        <Clock size={12} className="text-gray-400" />
-                        <input
-                          type="time"
-                          value={item.startTime}
-                          onChange={e => updatePlanItem(i, 'startTime', e.target.value)}
-                          className="px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm w-[100px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] text-gray-400">Varighet</span>
-                        <select
-                          value={item.durationMinutes}
-                          onChange={e => updatePlanItem(i, 'durationMinutes', Number(e.target.value))}
-                          className="px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        >
-                          {[5, 10, 15, 20, 25, 30, 45, 60, 90, 120].map(m => (
-                            <option key={m} value={m}>{m} min</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  )}
+                  <button
+                    onClick={() => setEditingIndex(editingIndex === i ? null : i)}
+                    className="icon-btn"
+                    aria-label={editingIndex === i ? 'Ferdig' : `Endre tid for ${item.title}`}
+                  >
+                    {editingIndex === i ? <Check size={16} /> : <Pencil size={16} />}
+                  </button>
                 </div>
-              ))}
-              <button
-                onClick={handleApply}
-                disabled={loading}
-                className="w-full mt-1 py-3 rounded-xl bg-green-500 text-white font-semibold hover:bg-green-600 disabled:opacity-50 transition-all min-h-[48px] flex items-center justify-center gap-2 text-sm shadow-lg shadow-green-500/25 active:scale-[0.98]"
-              >
-                {loading ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Plus size={16} />
+                {editingIndex === i && (
+                  <div className="flex gap-3 px-4 pb-3">
+                    <input
+                      type="time"
+                      value={item.startTime}
+                      onChange={e => e.target.value && updatePlanItem(i, 'startTime', e.target.value)}
+                      aria-label="Starttid"
+                      className="field py-2 text-sm tabular"
+                    />
+                    <select
+                      value={item.durationMinutes}
+                      onChange={e => updatePlanItem(i, 'durationMinutes', Number(e.target.value))}
+                      aria-label="Varighet"
+                      className="field py-2 text-sm"
+                    >
+                      {[...new Set([5, 10, 15, 20, 25, 30, 45, 60, 90, 120, item.durationMinutes])].sort((a, b) => a - b).map(m => (
+                        <option key={m} value={m}>{m} min</option>
+                      ))}
+                    </select>
+                  </div>
                 )}
-                Legg til alle
-              </button>
-            </div>
-          )}
-        </>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
-    </div>
+    </Sheet>
   )
 }

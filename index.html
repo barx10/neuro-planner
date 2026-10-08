@@ -4,7 +4,11 @@
     <meta charset="UTF-8" />
     <link rel="icon" href="/icon.png" type="image/png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#6366f1" />
+    <meta name="theme-color" content="#fafaf9" />
+    <script>
+      // Unngå hvitt blink før innstillingene er lastet
+      if (matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.classList.add('dark')
+    </script>
     <meta name="description" content="Visuell planlegger for nevrodivergente" />
     <link rel="apple-touch-icon" href="/icon.png" />
     <title>Neurominder</title>

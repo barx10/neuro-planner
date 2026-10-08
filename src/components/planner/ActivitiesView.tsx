@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
-import { X, Trash2, Briefcase, Home, Heart, Plus } from 'lucide-react'
+import { X, Plus } from 'lucide-react'
 import { useActivityStore } from '../../store/activityStore'
 import type { ActivityCategory } from '../../types'
 import { EmojiPicker } from '../ui/EmojiPicker'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 
-const CATEGORIES: { key: ActivityCategory; label: string; icon: typeof Briefcase; color: string; description: string }[] = [
-  { key: 'arbeid', label: 'Arbeid', icon: Briefcase, color: '#6366f1', description: 'Jobb, skole, prosjekter' },
-  { key: 'husholdning', label: 'Husholdning', icon: Home, color: '#f59e0b', description: 'Vaske, rydde, handle' },
-  { key: 'behov', label: 'Behov', icon: Heart, color: '#ec4899', description: 'Spise, hvile, trening' },
+const CATEGORIES: { key: ActivityCategory; label: string; description: string }[] = [
+  { key: 'arbeid', label: 'Arbeid', description: 'Jobb, skole, prosjekter' },
+  { key: 'husholdning', label: 'Husholdning', description: 'Vaske, rydde, handle' },
+  { key: 'behov', label: 'Behov', description: 'Spise, hvile, trening' },
 ]
 
 const SUGGESTIONS: { title: string; emoji: string; category: ActivityCategory }[] = [
@@ -47,6 +47,7 @@ export function ActivitiesView() {
   const [formTitle, setFormTitle] = useState('')
   const [formEmoji, setFormEmoji] = useState('\u2B50')
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [openSuggestions, setOpenSuggestions] = useState<ActivityCategory | null>(null)
 
   useEffect(() => {
     loadActivities()
@@ -69,136 +70,103 @@ export function ActivitiesView() {
   const deleteTarget = deleteId ? activities.find(a => a.id === deleteId) : null
 
   return (
-    <div className="max-w-lg mx-auto px-4 pb-24">
-      <div className="py-5">
-        <h2 className="text-2xl font-extrabold">Faste aktiviteter</h2>
-        <p className="text-sm text-gray-400 mt-1">Aktivitetene dine, sortert etter kategori</p>
+    <div className="max-w-lg mx-auto px-4 pt-4">
+      <div className="mb-6">
+        <h2 className="text-2xl font-semibold leading-tight">Aktiviteter</h2>
+        <p className="text-muted">Faste gjøremål du kan velge når du legger til oppgaver.</p>
       </div>
 
       {CATEGORIES.map(cat => {
         const catActivities = activities.filter(a => a.category === cat.key)
-        const Icon = cat.icon
         const isAdding = formCategory === cat.key
+        const suggestions = SUGGESTIONS.filter(
+          s => s.category === cat.key && !catActivities.some(a => a.title === s.title)
+        )
         return (
-          <div key={cat.key} className="mb-6">
-            <div className="flex items-center justify-between mb-2.5">
-              <div className="flex items-center gap-2.5">
-                <div
-                  className="w-8 h-8 rounded-xl flex items-center justify-center"
-                  style={{ backgroundColor: cat.color + '18' }}
-                >
-                  <Icon size={16} style={{ color: cat.color }} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm">{cat.label}</h3>
-                  <p className="text-[11px] text-gray-400">{cat.description}</p>
-                </div>
-                {catActivities.length > 0 && (
-                  <span className="text-[11px] text-gray-300 dark:text-gray-600 font-semibold">
-                    {catActivities.length}
-                  </span>
-                )}
+          <section key={cat.key} className="mb-8" aria-labelledby={`cat-${cat.key}`}>
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h3 id={`cat-${cat.key}`} className="font-semibold">{cat.label}</h3>
+                <p className="text-sm text-subtle">{cat.description}</p>
               </div>
               <button
                 onClick={() => setFormCategory(isAdding ? null : cat.key)}
-                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-all active:scale-90 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                style={{ color: cat.color }}
-                aria-label={`Legg til i ${cat.label}`}
+                className="icon-btn -mr-3"
+                aria-label={isAdding ? 'Avbryt' : `Legg til i ${cat.label}`}
+                aria-expanded={isAdding}
               >
-                {isAdding ? <X size={20} strokeWidth={2.5} /> : <Plus size={20} strokeWidth={2.5} />}
+                {isAdding ? <X size={20} /> : <Plus size={20} />}
               </button>
             </div>
 
-            {/* Inline add form */}
             {isAdding && (
-              <div className="mb-3 p-3.5 rounded-2xl glass border border-white/40 dark:border-white/5 animate-slide-down space-y-3">
-                <div className="flex gap-3 items-start">
-                  <EmojiPicker value={formEmoji} onChange={setFormEmoji} />
-                  <input
-                    type="text"
-                    value={formTitle}
-                    onChange={e => setFormTitle(e.target.value)}
-                    placeholder="Aktivitetsnavn..."
-                    className="flex-1 px-3.5 py-3 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm font-medium placeholder:text-gray-300 dark:placeholder:text-gray-600"
-                    autoFocus
-                    onKeyDown={e => { if (e.key === 'Enter') handleAdd() }}
-                  />
-                </div>
-                <button
-                  onClick={handleAdd}
-                  disabled={!formTitle.trim()}
-                  className="w-full py-3 btn-primary min-h-[48px] text-sm"
-                >
+              <div className="card p-3 mb-2 flex gap-2 items-center animate-fade-in">
+                <EmojiPicker value={formEmoji} onChange={setFormEmoji} />
+                <input
+                  type="text"
+                  value={formTitle}
+                  onChange={e => setFormTitle(e.target.value)}
+                  placeholder="Navn"
+                  aria-label="Navn på aktivitet"
+                  className="field flex-1 min-w-0"
+                  autoFocus
+                  onKeyDown={e => { if (e.key === 'Enter') handleAdd() }}
+                />
+                <button onClick={handleAdd} disabled={!formTitle.trim()} className="btn-primary px-4">
                   Legg til
                 </button>
               </div>
             )}
 
-            {/* Activities list */}
-            {catActivities.length > 0 ? (
-              <div className="space-y-2">
-                {catActivities.map((activity, i) => (
-                  <div
-                    key={activity.id}
-                    className="flex items-center gap-3 p-3.5 rounded-2xl glass border border-white/40 dark:border-white/5 animate-slide-up"
-                    style={{ animationDelay: `${i * 40}ms`, animationFillMode: 'both' }}
-                  >
-                    <span className="text-xl">{activity.emoji}</span>
-                    <span className="flex-1 font-medium text-sm">{activity.title}</span>
+            {catActivities.length > 0 && (
+              <ul className="card divide-y divide-line">
+                {catActivities.map(activity => (
+                  <li key={activity.id} className="flex items-center gap-3 pl-4 pr-1 min-h-[52px]">
+                    <span aria-hidden>{activity.emoji}</span>
+                    <span className="flex-1">{activity.title}</span>
                     <button
                       onClick={() => setDeleteId(activity.id)}
-                      className="p-2 rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-500/10 transition-all min-w-[44px] min-h-[44px] flex items-center justify-center"
-                      aria-label="Slett aktivitet"
+                      className="icon-btn"
+                      aria-label={`Fjern ${activity.title}`}
                     >
-                      <Trash2 size={16} />
+                      <X size={18} />
                     </button>
-                  </div>
+                  </li>
                 ))}
+              </ul>
+            )}
+
+            {suggestions.length > 0 && (catActivities.length === 0 || openSuggestions === cat.key) && (
+              <div className="mt-3">
+                <div className="flex flex-wrap gap-2">
+                  {suggestions.map(s => (
+                    <button
+                      key={s.title}
+                      onClick={() => handleSuggestion(s)}
+                      className="flex items-center gap-1.5 pl-2.5 pr-3 min-h-[40px] rounded-full border border-dashed border-subtle/60 text-sm text-muted hover:bg-sunken hover:text-ink transition-colors"
+                    >
+                      <Plus size={14} aria-hidden />
+                      <span aria-hidden>{s.emoji}</span>
+                      {s.title}
+                    </button>
+                  ))}
+                </div>
               </div>
-            ) : !isAdding ? (
-              <button
-                onClick={() => setFormCategory(cat.key)}
-                className="w-full rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 p-4 text-center text-sm text-gray-300 dark:text-gray-600 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-400 transition-all active:scale-[0.98]"
-              >
-                Trykk for å legge til
+            )}
+            {suggestions.length > 0 && catActivities.length > 0 && openSuggestions !== cat.key && (
+              <button onClick={() => setOpenSuggestions(cat.key)} className="btn-ghost text-sm px-2 -ml-2 mt-1">
+                Vis forslag ({suggestions.length})
               </button>
-            ) : null}
-          </div>
+            )}
+          </section>
         )
       })}
 
-      {/* Suggestions */}
-      <div className="mt-2 mb-6">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Vanlige gjøremål</h3>
-        {CATEGORIES.map(cat => {
-          const catSuggestions = SUGGESTIONS.filter(s => s.category === cat.key)
-          const existingTitles = activities.filter(a => a.category === cat.key).map(a => a.title)
-          const available = catSuggestions.filter(s => !existingTitles.includes(s.title))
-          if (available.length === 0) return null
-          return (
-            <div key={cat.key} className="mb-4">
-              <p className="text-[11px] font-semibold text-gray-400 mb-2">{cat.label}</p>
-              <div className="flex flex-wrap gap-2">
-                {available.map(s => (
-                  <button
-                    key={s.title}
-                    onClick={() => handleSuggestion(s)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl glass border border-white/40 dark:border-white/5 text-sm font-medium hover:bg-white/80 dark:hover:bg-white/5 transition-all active:scale-95"
-                  >
-                    <span>{s.emoji}</span>
-                    <span>{s.title}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
       <ConfirmDialog
         open={deleteId !== null}
-        title="Slett aktivitet"
-        message={`Slette "${deleteTarget?.title ?? ''}"?`}
+        title="Fjern aktivitet"
+        message={`Vil du fjerne «${deleteTarget?.title ?? ''}» fra listen?`}
+        confirmLabel="Fjern"
         onConfirm={() => { if (deleteId) deleteActivity(deleteId); setDeleteId(null) }}
         onCancel={() => setDeleteId(null)}
       />

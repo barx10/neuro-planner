@@ -16,17 +16,20 @@ const DEFAULT_SETTINGS: UserSettings = {
   weeklySchedule: {}
 }
 
+const darkQuery = window.matchMedia('(prefers-color-scheme: dark)')
+let currentTheme: 'light' | 'dark' | 'auto' = 'auto'
+
 function applyTheme(theme: 'light' | 'dark' | 'auto') {
-  const root = document.documentElement
-  if (theme === 'dark') {
-    root.classList.add('dark')
-  } else if (theme === 'light') {
-    root.classList.remove('dark')
-  } else {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    root.classList.toggle('dark', prefersDark)
-  }
+  currentTheme = theme
+  const dark = theme === 'dark' || (theme === 'auto' && darkQuery.matches)
+  document.documentElement.classList.toggle('dark', dark)
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#121214' : '#fafaf9')
 }
+
+// Følg enhetens tema live når brukeren har valgt «Som enheten»
+darkQuery.addEventListener('change', () => {
+  if (currentTheme === 'auto') applyTheme('auto')
+})
 
 interface SettingsStore {
   settings: UserSettings
