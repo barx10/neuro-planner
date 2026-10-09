@@ -14,6 +14,7 @@ export default defineConfig({
       manifest: {
         name: 'Neurominder',
         short_name: 'Neurominder',
+        lang: 'nb',
         description: 'Visuell planlegger for nevrodivergente',
         theme_color: '#fafaf9',
         background_color: '#fafaf9',
