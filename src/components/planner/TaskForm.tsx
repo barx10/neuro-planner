@@ -11,7 +11,7 @@ import { Sheet } from '../ui/Sheet'
 import { TaskBreakdown } from '../ai/TaskBreakdown'
 import { TASK_COLORS } from '../../utils/colorHelpers'
 import { formatDuration } from '../../utils/timeHelpers'
-import { icsUrl, googleCalendarUrl } from '../../utils/calendar'
+import { downloadIcs, googleCalendarUrl } from '../../utils/calendar'
 
 const DURATIONS = [10, 15, 30, 45, 60, 90]
 const REMINDERS = [0, 5, 15, 30, 60]
@@ -178,14 +178,13 @@ export function TaskForm({ date, defaultTime, task, onClose }: TaskFormProps) {
           </div>
           {task && (
             <div className="flex gap-2 mt-3">
-              <a
-                href={icsUrl({ title: title || task.title, date: task.date, startTime, durationMinutes: duration, reminderMinutes: reminder })}
-                target="_blank"
-                rel="noopener"
+              <button
+                type="button"
+                onClick={() => downloadIcs({ title: title || task.title, date: task.date, startTime, durationMinutes: duration, reminderMinutes: reminder })}
                 className="btn-secondary flex-1 text-sm"
               >
                 <CalendarPlus size={16} /> Legg i kalender
-              </a>
+              </button>
               <a
                 href={googleCalendarUrl({ title: title || task.title, date: task.date, startTime, durationMinutes: duration })}
                 target="_blank"
