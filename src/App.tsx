@@ -6,6 +6,8 @@ import { OverviewView } from './components/planner/OverviewView'
 import { SettingsPanel } from './components/ui/SettingsPanel'
 import { HelpPanel } from './components/ui/HelpPanel'
 import { SplashScreen } from './components/ui/SplashScreen'
+import { QuickCapture } from './components/ai/QuickCapture'
+import { useTodayReminders } from './hooks/useTodayReminders'
 import { useSettingsStore } from './store/settingsStore'
 
 type View = 'today' | 'activities' | 'overview'
@@ -34,6 +36,7 @@ function App() {
   const [showHelp, setShowHelp] = useState(false)
   const { loadSettings } = useSettingsStore()
   const hideSplash = useCallback(() => setShowSplash(false), [])
+  useTodayReminders()
 
   useEffect(() => {
     loadSettings()
@@ -57,7 +60,7 @@ function App() {
         </div>
       </header>
 
-      <main className="pb-28">
+      <main className="pb-40">
         {view === 'today' && <DayView />}
         {view === 'activities' && <ActivitiesView />}
         {view === 'overview' && <OverviewView />}
@@ -86,6 +89,8 @@ function App() {
           })}
         </div>
       </nav>
+
+      <QuickCapture />
 
       {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
       {showHelp && <HelpPanel onClose={() => setShowHelp(false)} />}

@@ -1,6 +1,6 @@
 import type { Task } from '../types'
 
-const PRE_WARNING_MS = 5 * 60 * 1000 // 5 min before
+const DEFAULT_REMINDER_MIN = 5
 
 let activeTimeouts: number[] = []
 
@@ -44,7 +44,7 @@ export function playDing(type: 'soft' | 'celebrate' = 'soft') {
 }
 
 function notify(title: string, body: string, tag?: string) {
-  if (Notification.permission === 'granted') {
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
     new Notification(title, { body, icon: '/icon.png', tag })
   }
   if ('vibrate' in navigator) {
@@ -80,7 +80,7 @@ export function clearScheduledNotifications() {
 export function scheduleNotificationsForTasks(tasks: Task[], dateStr: string) {
   clearScheduledNotifications()
 
-  if (Notification.permission !== 'granted') return
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
 
   const now = Date.now()
 
@@ -89,13 +89,14 @@ export function scheduleNotificationsForTasks(tasks: Task[], dateStr: string) {
 
     const startMs = getTaskTimeMs(task, dateStr)
 
-    // 5 min before start
-    const preWarningMs = startMs - PRE_WARNING_MS - now
+    const minutes = task.reminderMinutes ?? DEFAULT_REMINDER_MIN
+    if (minutes <= 0) continue
+    const preWarningMs = startMs - minutes * 60_000 - now
     if (preWarningMs > 0) {
       const id = window.setTimeout(() => {
         notify(
-          `${task.emoji} Om 5 minutter: ${task.title}`,
-          'Gjør deg klar!'
+          `${task.emoji} Om ${minutes} minutter: ${task.title}`,
+          `Starter kl. ${task.startTime}.`
         )
       }, preWarningMs)
       activeTimeouts.push(id)

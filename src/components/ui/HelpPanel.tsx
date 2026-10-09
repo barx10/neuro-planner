@@ -21,6 +21,12 @@ Aktiviteter: Faste gjøremål du kan velge raskt når du legger til en oppgave.
 Oversikt: Hvor mye du har fått gjort denne uken, og hvordan energien har vært.`,
   },
   {
+    title: 'Snakk inn en avtale',
+    content: `Kommer du på noe i løpet av dagen, trykk på mikrofonknappen nede til høyre og si hva og når, for eksempel «tannlegen halv tre på fredag». Appen finner dag og tid og viser et forslag du kan rette før det legges inn.
+
+Påminnelser fra appen kommer bare når den er åpen eller nylig brukt. Vil du være sikker på å bli minnet på det, trykk «Legg i kalender» etterpå, så tar telefonens kalender seg av påminnelsen.`,
+  },
+  {
     title: 'Tidtaker og fokusøkter',
     content: `Oppgaver under 25 minutter får en enkel nedtelling.
 
