@@ -33,9 +33,7 @@ export function TaskCard({ task, timeStatus, onStartTimer, onEdit }: TaskCardPro
       </div>
 
       <div
-        className={`flex-1 min-w-0 card overflow-hidden transition-colors ${
-          isNow ? 'border-accent ring-1 ring-accent' : ''
-        }`}
+        className="flex-1 min-w-0 card overflow-hidden"
       >
         <div className="flex items-stretch">
           <span className="w-1 shrink-0" style={{ backgroundColor: task.color, opacity: task.completed ? 0.35 : 1 }} aria-hidden />
@@ -80,7 +78,7 @@ export function TaskCard({ task, timeStatus, onStartTimer, onEdit }: TaskCardPro
               className="w-12 shrink-0 flex items-center justify-center text-muted hover:text-ink transition-colors"
               aria-label={`Start tidtaker for «${task.title}»`}
             >
-              <span className={`w-9 h-9 rounded-full flex items-center justify-center ${isNow ? 'bg-accent text-on-accent' : 'bg-sunken'}`}>
+              <span className="w-9 h-9 rounded-full flex items-center justify-center bg-sunken">
                 <Play size={15} fill="currentColor" className="ml-0.5" />
               </span>
             </button>

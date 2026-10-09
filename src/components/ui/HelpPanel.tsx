@@ -28,13 +28,13 @@ Lengre oppgaver deles i økter på 25 minutter. Mellom øktene velger du selv om
   },
   {
     title: 'Planlegg med AI',
-    content: `Skriv fritt hva du skal gjøre, så får du et forslag med tider og pauser. Du kan justere tidene før du legger planen inn. Når du redigerer en oppgave, kan AI også dele den opp i små steg.
+    content: `Skriv eller snakk inn hva du skal gjøre, så får du et forslag med tider og pauser. Trykker du «Snakk inn», tas tale opp og gjøres om til tekst du kan se over før planen lages. Du kan justere tidene før du legger planen inn. Når du redigerer en oppgave, kan AI også dele den opp i små steg.
 
-Du bruker din egen API-nøkkel fra Google Gemini, OpenAI eller Anthropic. Legg den inn under Innstillinger.`,
+Du bruker din egen API-nøkkel fra Google Gemini, OpenAI eller Anthropic. Legg den inn under Innstillinger. Stemme krever nøkkel fra Gemini eller OpenAI, siden Anthropic ikke tar imot lyd.`,
   },
   {
     title: 'Personvern og API-nøkler',
-    content: `Alt du legger inn, lagres bare på enheten din. API-nøkkelen sendes direkte til AI-leverandøren og aldri til Neurominder.
+    content: `Alt du legger inn, lagres bare på enheten din. API-nøkkelen sendes direkte til AI-leverandøren og aldri til Neurominder. Det samme gjelder lydopptak når du snakker inn en plan; opptaket lagres ikke.
 
 Slår du av «Husk nøkkelen», glemmes den når du lukker appen. Installert på hjemskjermen kjører appen i et eget vindu, adskilt fra nettleseren.`,
   },

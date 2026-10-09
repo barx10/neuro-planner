@@ -10,7 +10,7 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.ts',
       registerType: 'autoUpdate',
-      includeAssets: ['theme-init.js', 'favicon.svg', 'icon.png', 'icon-192.png', 'apple-touch-icon.png'],
+      includeAssets: ['theme-init.js', 'favicon.ico', 'favicon-32.png', 'favicon.svg', 'icon.png', 'icon-192.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Neurominder',
         short_name: 'Neurominder',
