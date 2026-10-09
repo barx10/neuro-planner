@@ -8,7 +8,7 @@ import { useTaskStore } from '../../store/taskStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import { TASK_COLORS } from '../../utils/colorHelpers'
 import { parseDate, getEndTime } from '../../utils/timeHelpers'
-import { icsUrl, googleCalendarUrl } from '../../utils/calendar'
+import { downloadIcs, googleCalendarUrl } from '../../utils/calendar'
 import { Sheet } from '../ui/Sheet'
 
 type Phase = 'recording' | 'typing' | 'thinking' | 'review' | 'saved'
@@ -269,9 +269,9 @@ export function QuickCapture() {
                     {dayLabel(it.date)} kl. {it.startTime} · {reminderLabel(it.reminderMinutes).toLowerCase()}
                   </p>
                   <div className="flex gap-2">
-                    <a href={icsUrl({ ...it, startTime: it.startTime })} target="_blank" rel="noopener" className="btn-secondary flex-1 text-sm">
+                    <button onClick={() => downloadIcs({ ...it, startTime: it.startTime! })} className="btn-secondary flex-1 text-sm">
                       <CalendarPlus size={16} /> Legg i kalender
-                    </a>
+                    </button>
                     <a href={googleCalendarUrl({ ...it, startTime: it.startTime })} target="_blank" rel="noopener noreferrer" className="btn-ghost text-sm">
                       Google
                     </a>
