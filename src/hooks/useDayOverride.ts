@@ -27,15 +27,10 @@ export function useDayOverride(date: string) {
     await load()
   }
 
-  const setDayBlocked = async (period: BlockedPeriod) => {
-    await db.dayOverrides.put({ date, blockedPeriod: period })
-    await load()
-  }
-
   const clearOverride = async () => {
     await db.dayOverrides.delete(date)
     await load()
   }
 
-  return { override, loading, setDayFree, setDayBlocked, clearOverride }
+  return { override, loading, setDayFree, clearOverride }
 }

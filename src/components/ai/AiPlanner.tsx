@@ -5,7 +5,7 @@ import { useTaskStore } from '../../store/taskStore'
 import { TASK_COLORS } from '../../utils/colorHelpers'
 import { useSettingsStore } from '../../store/settingsStore'
 import { useDayOverride } from '../../hooks/useDayOverride'
-import { getBlockedPeriodForDate, getEndTime } from '../../utils/timeHelpers'
+import { getScheduleForDate, getEndTime, formatPeriod } from '../../utils/timeHelpers'
 import { Sheet } from '../ui/Sheet'
 import { VoiceButton } from './VoiceButton'
 
@@ -27,7 +27,7 @@ export function AiPlanner({ date, onClose }: AiPlannerProps) {
   const { addTask, tasks } = useTaskStore()
   const { settings } = useSettingsStore()
   const { override } = useDayOverride(date)
-  const blockedPeriod = getBlockedPeriodForDate(date, settings.weeklySchedule, override)
+  const { periods: busy } = getScheduleForDate(date, settings.weeklySchedule, override)
   const hasKey = !!settings.apiKeys[settings.aiProvider]
 
   const updatePlanItem = (index: number, field: 'startTime' | 'durationMinutes', value: string | number) => {
@@ -39,7 +39,7 @@ export function AiPlanner({ date, onClose }: AiPlannerProps) {
     setLoading(true)
     setError('')
     try {
-      const result = await generateDayPlan(input, blockedPeriod)
+      const result = await generateDayPlan(input, busy)
       setPlan(result.tasks)
       setAnalysis(result.analysis)
     } catch (err) {
@@ -98,9 +98,9 @@ export function AiPlanner({ date, onClose }: AiPlannerProps) {
           <p className="text-sm text-muted">
             Fortell eller skriv hva du skal eller må gjøre. Du får et forslag med tider og pauser som du kan justere før det legges inn.
           </p>
-          {blockedPeriod && (
-            <p className="text-sm text-muted">
-              Opptatt {blockedPeriod.start}–{blockedPeriod.end} ({blockedPeriod.label}). Planen legges utenom.
+          {busy.length > 0 && (
+            <p className="text-sm text-muted tabular">
+              Opptatt {busy.map(formatPeriod).join(', ')}. Planen legges i den ledige tiden.
             </p>
           )}
           <VoiceButton onText={text => setInput(prev => (prev.trim() ? `${prev.trim()} ${text}` : text))} />

@@ -4,8 +4,8 @@ import { format, addDays, subDays, startOfWeek, isSameDay } from 'date-fns'
 import { nb } from 'date-fns/locale'
 import { useTaskStore } from '../../store/taskStore'
 import { useSettingsStore } from '../../store/settingsStore'
-import type { Task, BlockedPeriod } from '../../types'
-import { todayString, getBlockedPeriodForDate, parseDate, getEndTime } from '../../utils/timeHelpers'
+import type { Task } from '../../types'
+import { todayString, getScheduleForDate, parseDate, getEndTime, type ScheduleForDate } from '../../utils/timeHelpers'
 import { useDayOverride } from '../../hooks/useDayOverride'
 import { scheduleNotificationsForTasks, clearScheduledNotifications } from '../../hooks/useNotifications'
 import { db } from '../../db/database'
@@ -55,36 +55,43 @@ function findFocusTask(tasks: Task[], statuses: Record<string, TimeStatus>, now:
 }
 
 function ScheduleBanner({
-  period,
-  isFree,
-  hasOverride,
+  schedule,
   onSetFree,
   onClearOverride,
 }: {
-  period: BlockedPeriod | null
-  isFree: boolean
-  hasOverride: boolean
+  schedule: ScheduleForDate
   onSetFree: () => void
   onClearOverride: () => void
 }) {
-  if (!period && !isFree) return null
+  const { off, periods, overridden } = schedule
+  if (!off && periods.length === 0 && !overridden) return null
   return (
-    <div className="flex items-center gap-3 pl-4 pr-1 mb-4 rounded-xl bg-sunken min-h-[52px]">
-      <p className="flex-1 text-sm">
-        {period ? (
+    <div className="flex items-center gap-3 pl-4 pr-1 py-2 mb-4 rounded-xl bg-sunken min-h-[52px]">
+      <div className="flex-1 text-sm">
+        {overridden ? (
+          <p className="font-semibold">Fri i dag</p>
+        ) : off ? (
           <>
-            <span className="font-semibold">{period.label}</span>{' '}
-            <span className="text-muted tabular">{period.start}–{period.end}</span>
+            <p className="font-semibold">Ingen planlegging i dag</p>
+            <p className="text-muted">Satt i ukeskjemaet</p>
           </>
         ) : (
-          <span className="font-semibold">Fri i dag</span>
+          <ul className="tabular">
+            {periods.map(p => (
+              <li key={p.start}>
+                <span className="font-semibold">{p.label || 'Opptatt'}</span>{' '}
+                <span className="text-muted">{p.start}–{p.end}</span>
+              </li>
+            ))}
+          </ul>
         )}
-      </p>
-      {period && !hasOverride && (
-        <button onClick={onSetFree} className="btn-ghost text-sm">Ta fri i dag</button>
-      )}
-      {hasOverride && (
+      </div>
+      {overridden ? (
         <button onClick={onClearOverride} className="btn-ghost text-sm">Angre</button>
+      ) : off ? (
+        <button onClick={onSetFree} className="btn-ghost text-sm">Planlegg likevel</button>
+      ) : (
+        <button onClick={onSetFree} className="btn-ghost text-sm">Ta fri i dag</button>
       )}
     </div>
   )
@@ -101,7 +108,8 @@ export function DayView() {
   const { tasks, loadTasks } = useTaskStore()
   const { settings } = useSettingsStore()
   const { override, setDayFree, clearOverride } = useDayOverride(date)
-  const blockedPeriod = getBlockedPeriodForDate(date, settings.weeklySchedule, override)
+  const schedule = getScheduleForDate(date, settings.weeklySchedule, override)
+  const planningOff = schedule.off
 
   const isToday = date === todayString()
 
@@ -203,13 +211,7 @@ export function DayView() {
         </button>
       </div>
 
-      <ScheduleBanner
-        period={blockedPeriod}
-        isFree={override !== undefined && override.blockedPeriod === null}
-        hasOverride={override !== undefined}
-        onSetFree={setDayFree}
-        onClearOverride={clearOverride}
-      />
+      <ScheduleBanner schedule={schedule} onSetFree={setDayFree} onClearOverride={clearOverride} />
 
       {isToday && moodLoaded && mood === undefined && (
         <div className="mb-5">
@@ -270,14 +272,18 @@ export function DayView() {
       {tasks.length === 0 && (
         <div className="card p-6 mb-6 text-center">
           <p className="font-semibold">Ingenting planlagt ennå</p>
-          <p className="text-sm text-muted mt-1 mb-5">Legg til én ting, eller få hjelp til å sette opp dagen.</p>
+          <p className="text-sm text-muted mt-1 mb-5">
+            {planningOff ? 'Du kan fortsatt legge til noe selv.' : 'Legg til én ting, eller få hjelp til å sette opp dagen.'}
+          </p>
           <div className="flex flex-col gap-2">
             <button onClick={() => setFormState({ defaultTime: '09:00' })} className="btn-primary">
               <Plus size={18} /> Legg til oppgave
             </button>
-            <button onClick={() => setShowAi(true)} className="btn-secondary">
-              <Sparkles size={16} /> Planlegg med AI
-            </button>
+            {!planningOff && (
+              <button onClick={() => setShowAi(true)} className="btn-secondary">
+                <Sparkles size={16} /> Planlegg med AI
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -318,7 +324,7 @@ export function DayView() {
         )
       })}
 
-      {tasks.length > 0 && (
+      {tasks.length > 0 && !planningOff && (
         <button onClick={() => setShowAi(true)} className="btn-ghost w-full mb-4">
           <Sparkles size={16} /> Planlegg resten med AI
         </button>
