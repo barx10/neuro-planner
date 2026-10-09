@@ -7,6 +7,7 @@ import { useSettingsStore } from '../../store/settingsStore'
 import { useDayOverride } from '../../hooks/useDayOverride'
 import { getBlockedPeriodForDate, getEndTime } from '../../utils/timeHelpers'
 import { Sheet } from '../ui/Sheet'
+import { VoiceButton } from './VoiceButton'
 
 interface AiPlannerProps {
   date: string
@@ -95,13 +96,14 @@ export function AiPlanner({ date, onClose }: AiPlannerProps) {
       {plan.length === 0 ? (
         <div className="space-y-3">
           <p className="text-sm text-muted">
-            Skriv fritt hva du skal eller må gjøre. Du får et forslag med tider og pauser som du kan justere før det legges inn.
+            Fortell eller skriv hva du skal eller må gjøre. Du får et forslag med tider og pauser som du kan justere før det legges inn.
           </p>
           {blockedPeriod && (
             <p className="text-sm text-muted">
               Opptatt {blockedPeriod.start}–{blockedPeriod.end} ({blockedPeriod.label}). Planen legges utenom.
             </p>
           )}
+          <VoiceButton onText={text => setInput(prev => (prev.trim() ? `${prev.trim()} ${text}` : text))} />
           <textarea
             value={input}
             onChange={e => setInput(e.target.value)}
@@ -109,7 +111,7 @@ export function AiPlanner({ date, onClose }: AiPlannerProps) {
             rows={4}
             aria-label="Beskriv dagen"
             className="field resize-none"
-            autoFocus
+            autoFocus={window.matchMedia('(pointer: fine)').matches}
           />
           {!hasKey && (
             <p className="text-sm text-muted">Legg inn en API-nøkkel under Innstillinger for å bruke AI.</p>

@@ -1,6 +1,6 @@
 import { useSettingsStore } from '../store/settingsStore'
 import { PROVIDERS } from '../utils/aiProviders'
-import type { AiModel } from '../types'
+import type { AiModel, AiProvider } from '../types'
 
 function getSettings() {
   return useSettingsStore.getState().settings
@@ -119,20 +119,93 @@ async function openaiChat(model: AiModel, system: string, userMessage: string, m
 
 // --- Unified helper ---
 
-// Prøver valgt modell først. Er den overbelastet, prøves de andre modellene fra samme leverandør.
-async function chat(system: string, userMessage: string, maxTokens = 500): Promise<string> {
-  const { aiProvider, aiModel } = getSettings()
-  const others = PROVIDERS.find(p => p.value === aiProvider)?.models.map(m => m.value).filter(m => m !== aiModel) ?? []
-  for (const model of [aiModel, ...others]) {
+// Prøver modellene i rekkefølge og går videre bare når en modell er midlertidig overbelastet.
+async function withFallback<M extends string, T>(models: M[], run: (model: M) => Promise<T>): Promise<T> {
+  for (const model of models) {
     try {
-      if (aiProvider === 'gemini') return await geminiChat(model, system, userMessage)
-      if (aiProvider === 'openai') return await openaiChat(model, system, userMessage, maxTokens)
-      return await anthropicChat(model, system, userMessage, maxTokens)
+      return await run(model)
     } catch (err) {
       if (!(err instanceof TransientError)) throw err
     }
   }
   throw new Error('AI-tjenesten er overbelastet akkurat nå. Vent litt og prøv igjen.')
+}
+
+// Valgt modell først, deretter de andre fra samme leverandør.
+function modelOrder(provider: AiProvider, preferred?: AiModel): AiModel[] {
+  const all = PROVIDERS.find(p => p.value === provider)?.models.map(m => m.value) ?? []
+  return preferred && all.includes(preferred) ? [preferred, ...all.filter(m => m !== preferred)] : all
+}
+
+async function chat(system: string, userMessage: string, maxTokens = 500): Promise<string> {
+  const { aiProvider, aiModel } = getSettings()
+  return withFallback(modelOrder(aiProvider, aiModel), model => {
+    if (aiProvider === 'gemini') return geminiChat(model, system, userMessage)
+    if (aiProvider === 'openai') return openaiChat(model, system, userMessage, maxTokens)
+    return anthropicChat(model, system, userMessage, maxTokens)
+  })
+}
+
+// --- Tale til tekst ---
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '')
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(blob)
+  })
+}
+
+// Hvem som skriver ned talen. Anthropic tar ikke imot lyd, så da brukes en annen nøkkel om den finnes.
+export function transcriptionProvider(): 'gemini' | 'openai' | null {
+  const { aiProvider, apiKeys } = getSettings()
+  if (aiProvider === 'gemini' && apiKeys.gemini) return 'gemini'
+  if (aiProvider === 'openai' && apiKeys.openai) return 'openai'
+  if (apiKeys.gemini) return 'gemini'
+  if (apiKeys.openai) return 'openai'
+  return null
+}
+
+export async function transcribeAudio(audio: Blob): Promise<string> {
+  const provider = transcriptionProvider()
+  const { aiProvider, aiModel, apiKeys } = getSettings()
+  if (!provider) throw new Error('Stemme krever en API-nøkkel fra Google Gemini eller OpenAI.')
+
+  if (provider === 'openai') {
+    const form = new FormData()
+    form.append('file', audio, 'tale.wav')
+    form.append('model', 'gpt-transcribe')
+    const data = await withFallback(['gpt-transcribe'], () =>
+      postJson('https://api.openai.com/v1/audio/transcriptions', {
+        headers: { 'Authorization': `Bearer ${apiKeys.openai}` },
+        body: form,
+      })
+    )
+    return String(data.text ?? '').trim()
+  }
+
+  const base64 = await blobToBase64(audio)
+  const models = modelOrder('gemini', aiProvider === 'gemini' ? aiModel : undefined)
+  return withFallback(models, async model => {
+    const data = await postJson(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKeys.gemini}`,
+      {
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: 'Skriv ned nøyaktig hva som blir sagt i lydopptaket, på det språket det snakkes (som regel norsk). Svar bare med teksten, uten kommentarer. Er opptaket stille eller uforståelig, svar med en tom streng.' },
+              { inline_data: { mime_type: 'audio/wav', data: base64 } },
+            ],
+          }],
+          generationConfig: { temperature: 0 },
+        }),
+      }
+    )
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text
+    return String(text ?? '').trim()
+  })
 }
 
 // --- Public API ---
