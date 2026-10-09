@@ -5,6 +5,7 @@ import { nanoid } from 'nanoid'
 
 interface TaskStore {
   tasks: Task[]
+  currentDate: string | null   // datoen som vises; nye oppgaver på andre datoer skal ikke bytte visning
   loadTasks: (date: string) => Promise<void>
   addTask: (task: Omit<Task, 'id'>) => Promise<void>
   updateTask: (id: string, changes: Partial<Task>) => Promise<void>
@@ -15,15 +16,17 @@ interface TaskStore {
 
 export const useTaskStore = create<TaskStore>((set, get) => ({
   tasks: [],
+  currentDate: null,
   loadTasks: async (date) => {
     const tasks = await db.tasks.where('date').equals(date).toArray()
     tasks.sort((a, b) => a.startTime.localeCompare(b.startTime))
-    set({ tasks })
+    set({ tasks, currentDate: date })
   },
   addTask: async (task) => {
     const newTask = { ...task, id: nanoid() }
     await db.tasks.add(newTask)
-    await get().loadTasks(task.date)
+    const current = get().currentDate
+    if (current === null || current === task.date) await get().loadTasks(task.date)
   },
   updateTask: async (id, changes) => {
     await db.tasks.update(id, changes)

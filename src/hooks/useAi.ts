@@ -271,3 +271,90 @@ Kun JSON. Ingen markdown eller tekst utenfor objektet.`,
   }
   return { tasks: parsed.tasks || [], analysis: parsed.analysis || '' }
 }
+
+// --- Hurtigregistrering: én beskjed blir til én eller flere avtaler ---
+
+export interface ParsedAppointment {
+  title: string
+  emoji: string
+  date: string               // "YYYY-MM-DD"
+  startTime: string | null   // "HH:mm", null hvis ingen tid ble nevnt
+  durationMinutes: number
+  reminderMinutes: number
+}
+
+const pad = (n: number) => String(n).padStart(2, '0')
+const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+const WEEKDAY_NAMES = ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag']
+
+function appointmentPrompt(): string {
+  const now = new Date()
+  const days = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i)
+    return `${i === 0 ? 'i dag' : i === 1 ? 'i morgen' : WEEKDAY_NAMES[d.getDay()]} = ${ymd(d)}`
+  })
+  return `Du gjør korte beskjeder om avtaler og gjøremål om til strukturerte oppføringer i en dagplanlegger.
+Nå er det ${WEEKDAY_NAMES[now.getDay()]} ${ymd(now)}, klokken ${pad(now.getHours())}:${pad(now.getMinutes())} i Norge.
+Datoer de neste 14 dagene (et ukedagsnavn betyr første forekomst): ${days.join(', ')}.
+
+Svar med JSON: {"items": [{"title", "emoji", "date", "startTime", "durationMinutes", "reminderMinutes"}]}
+- title: kort og tydelig med stor forbokstav, uten tid og dato. Eksempel: "Tannlege".
+- emoji: ett passende emoji.
+- date: "YYYY-MM-DD". Uten dato: i dag hvis tidspunktet ikke har passert, ellers i morgen.
+- startTime: "HH:mm" i 24-timersformat, eller null hvis ingen tid er nevnt. "Halv tre" betyr 14:30 på dagtid. Uten am/pm velges det mest sannsynlige tidspunktet mellom 07 og 22.
+- durationMinutes: oppgitt varighet, ellers 60 for avtaler som lege, tannlege og møter, og 30 for andre ting.
+- reminderMinutes: oppgitt påminnelse i minutter før start, ellers 30 for avtaler utenfor hjemmet og 10 for andre ting.
+Én beskjed kan inneholde flere avtaler. Er det ingen avtale i beskjeden, svar {"items": []}.
+Kun JSON.`
+}
+
+function parseItems(raw: string): ParsedAppointment[] {
+  const cleaned = raw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim()
+  const parsed = JSON.parse(cleaned)
+  const items: unknown[] = Array.isArray(parsed) ? parsed : parsed.items ?? []
+  return items
+    .filter((x): x is Record<string, unknown> => !!x && typeof x === 'object')
+    .map(x => ({
+      title: String(x.title ?? '').trim(),
+      emoji: String(x.emoji ?? '\u{1F4CC}'),
+      date: /^\d{4}-\d{2}-\d{2}$/.test(String(x.date)) ? String(x.date) : ymd(new Date()),
+      startTime: /^\d{2}:\d{2}$/.test(String(x.startTime)) ? String(x.startTime) : null,
+      durationMinutes: Number(x.durationMinutes) > 0 ? Math.round(Number(x.durationMinutes)) : 30,
+      reminderMinutes: Number(x.reminderMinutes) >= 0 ? Math.round(Number(x.reminderMinutes)) : 10,
+    }))
+    .filter(x => x.title)
+}
+
+// Tale: med Gemini-nøkkel tolkes lyden direkte i ett kall. Ellers skrives den ned først og tolkes som tekst.
+export async function parseAppointments(input: { text: string } | { audio: Blob }): Promise<{ items: ParsedAppointment[]; heard?: string }> {
+  const system = appointmentPrompt()
+
+  if ('text' in input) return { items: parseItems(await chat(system, input.text, 800)) }
+
+  const { aiProvider, aiModel, apiKeys } = getSettings()
+  if (transcriptionProvider() !== 'gemini') {
+    const heard = await transcribeAudio(input.audio)
+    if (!heard) return { items: [], heard }
+    return { items: parseItems(await chat(system, heard, 800)), heard }
+  }
+
+  const base64 = await blobToBase64(input.audio)
+  const raw = await withFallback(modelOrder('gemini', aiProvider === 'gemini' ? aiModel : undefined), async model => {
+    const data = await postJson(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKeys.gemini}`,
+      {
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: system }] },
+          contents: [{ parts: [
+            { text: 'Her er beskjeden som lydopptak:' },
+            { inline_data: { mime_type: 'audio/wav', data: base64 } },
+          ] }],
+          generationConfig: { temperature: 0, responseMimeType: 'application/json' },
+        }),
+      }
+    )
+    return String(data.candidates?.[0]?.content?.parts?.[0]?.text ?? '{"items":[]}')
+  })
+  return { items: parseItems(raw) }
+}

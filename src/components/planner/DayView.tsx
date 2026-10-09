@@ -7,7 +7,6 @@ import { useSettingsStore } from '../../store/settingsStore'
 import type { Task } from '../../types'
 import { todayString, getScheduleForDate, parseDate, getEndTime, type ScheduleForDate } from '../../utils/timeHelpers'
 import { useDayOverride } from '../../hooks/useDayOverride'
-import { scheduleNotificationsForTasks, clearScheduledNotifications } from '../../hooks/useNotifications'
 import { db } from '../../db/database'
 import { TaskCard, type TimeStatus } from './TaskCard'
 import { TaskForm } from './TaskForm'
@@ -123,11 +122,6 @@ export function DayView() {
       setMoodLoaded(true)
     })
   }, [])
-
-  useEffect(() => {
-    if (isToday && tasks.length > 0) scheduleNotificationsForTasks(tasks, date)
-    return () => clearScheduledNotifications()
-  }, [tasks, date, isToday])
 
   const tick = useCallback(() => setNow(new Date()), [])
   useEffect(() => {

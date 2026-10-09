@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Trash2, X, Plus } from 'lucide-react'
+import { Trash2, X, Plus, CalendarPlus } from 'lucide-react'
 import { nanoid } from 'nanoid'
 import type { Task, Subtask } from '../../types'
 import { useTaskStore } from '../../store/taskStore'
@@ -11,8 +11,11 @@ import { Sheet } from '../ui/Sheet'
 import { TaskBreakdown } from '../ai/TaskBreakdown'
 import { TASK_COLORS } from '../../utils/colorHelpers'
 import { formatDuration } from '../../utils/timeHelpers'
+import { icsUrl, googleCalendarUrl } from '../../utils/calendar'
 
 const DURATIONS = [10, 15, 30, 45, 60, 90]
+const REMINDERS = [0, 5, 15, 30, 60]
+const reminderLabel = (m: number) => (m === 0 ? 'Ingen' : m < 60 ? `${m} min` : `${m / 60} t`)
 
 interface TaskFormProps {
   date: string
@@ -30,6 +33,7 @@ export function TaskForm({ date, defaultTime, task, onClose }: TaskFormProps) {
   const [color, setColor] = useState(task?.color ?? TASK_COLORS[4])
   const [startTime, setStartTime] = useState(task?.startTime ?? defaultTime ?? '09:00')
   const [duration, setDuration] = useState(task?.durationMinutes ?? 30)
+  const [reminder, setReminder] = useState(task?.reminderMinutes ?? 5)
   const [subtasks, setSubtasks] = useState<Subtask[]>(task?.subtasks ?? [])
   const [newSubtask, setNewSubtask] = useState('')
   const [saving, setSaving] = useState(false)
@@ -53,7 +57,7 @@ export function TaskForm({ date, defaultTime, task, onClose }: TaskFormProps) {
     e?.preventDefault()
     if (!title.trim()) return
     setSaving(true)
-    const fields = { title: title.trim(), emoji, color, startTime, durationMinutes: duration, subtasks }
+    const fields = { title: title.trim(), emoji, color, startTime, durationMinutes: duration, reminderMinutes: reminder, subtasks }
     if (task) {
       await updateTask(task.id, fields)
     } else {
@@ -152,6 +156,46 @@ export function TaskForm({ date, defaultTime, task, onClose }: TaskFormProps) {
               </button>
             ))}
           </div>
+        </div>
+
+        <div>
+          <p className="label mb-2">Påminnelse før start</p>
+          <div className="grid grid-cols-5 gap-2" role="radiogroup" aria-label="Påminnelse">
+            {[...new Set([...REMINDERS, reminder])].sort((a, b) => a - b).map(m => (
+              <button
+                key={m}
+                type="button"
+                role="radio"
+                aria-checked={reminder === m}
+                onClick={() => setReminder(m)}
+                className={`min-h-[44px] rounded-xl text-sm font-medium border transition-colors tabular ${
+                  reminder === m ? 'bg-ink text-bg border-ink' : 'border-line text-muted hover:bg-sunken'
+                }`}
+              >
+                {reminderLabel(m)}
+              </button>
+            ))}
+          </div>
+          {task && (
+            <div className="flex gap-2 mt-3">
+              <a
+                href={icsUrl({ title: title || task.title, date: task.date, startTime, durationMinutes: duration, reminderMinutes: reminder })}
+                target="_blank"
+                rel="noopener"
+                className="btn-secondary flex-1 text-sm"
+              >
+                <CalendarPlus size={16} /> Legg i kalender
+              </a>
+              <a
+                href={googleCalendarUrl({ title: title || task.title, date: task.date, startTime, durationMinutes: duration })}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-ghost text-sm"
+              >
+                Google
+              </a>
+            </div>
+          )}
         </div>
 
         <div>

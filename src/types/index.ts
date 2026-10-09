@@ -12,6 +12,7 @@ export interface Task {
   notes?: string
   order: number
   pomodoro?: boolean
+  reminderMinutes?: number   // minutter før start; 0 = ingen påminnelse, mangler = 5
 }
 
 export interface Subtask {
