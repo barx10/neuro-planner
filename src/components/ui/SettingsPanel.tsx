@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { X, Trash2, Eye, EyeOff, Bell, BellOff, Plus, Check } from 'lucide-react'
+import { Trash2, Eye, EyeOff, Bell, BellOff, Check } from 'lucide-react'
 import { Sheet } from './Sheet'
 import { useSettingsStore } from '../../store/settingsStore'
 import { db } from '../../db/database'
 import { ConfirmDialog } from './ConfirmDialog'
 import { requestNotificationPermission } from '../../hooks/useNotifications'
-import type { AiProvider, WeekDay, BlockedPeriod } from '../../types'
+import type { AiProvider } from '../../types'
+import { WeekScheduleEditor } from './WeekScheduleEditor'
 import { PROVIDERS } from '../../utils/aiProviders'
 
 interface SettingsPanelProps {
@@ -13,15 +14,6 @@ interface SettingsPanelProps {
 }
 
 
-const WEEKDAYS: { key: WeekDay; label: string; short: string }[] = [
-  { key: 'mon', label: 'Mandag', short: 'Man' },
-  { key: 'tue', label: 'Tirsdag', short: 'Tir' },
-  { key: 'wed', label: 'Onsdag', short: 'Ons' },
-  { key: 'thu', label: 'Torsdag', short: 'Tor' },
-  { key: 'fri', label: 'Fredag', short: 'Fre' },
-  { key: 'sat', label: 'Lørdag', short: 'Lør' },
-  { key: 'sun', label: 'Søndag', short: 'Søn' },
-]
 
 export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const { settings, updateSettings } = useSettingsStore()
@@ -30,55 +22,6 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const [notifStatus, setNotifStatus] = useState<string>(
     typeof Notification !== 'undefined' ? Notification.permission : 'unsupported'
   )
-  const [expandedDay, setExpandedDay] = useState<WeekDay | null>(null)
-
-  const schedule = settings.weeklySchedule ?? {}
-
-  const addDay = (day: WeekDay) => {
-    updateSettings({
-      weeklySchedule: {
-        ...schedule,
-        [day]: { start: '08:00', end: '16:00', label: 'Jobb/Skole' }
-      }
-    })
-    setExpandedDay(day)
-  }
-
-  const removeDay = (day: WeekDay) => {
-    const next = { ...schedule }
-    delete next[day]
-    updateSettings({ weeklySchedule: next })
-    if (expandedDay === day) setExpandedDay(null)
-  }
-
-  function addMinutesToTime(time: string, minutes: number): string {
-    const [h, m] = time.split(':').map(Number)
-    if (isNaN(h) || isNaN(m)) return '16:00'
-    const total = h * 60 + m + minutes
-    const newH = Math.min(Math.floor(total / 60), 23)
-    const newM = total % 60
-    return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`
-  }
-
-  const updateDayPeriod = (day: WeekDay, field: keyof BlockedPeriod, value: string) => {
-    const current = schedule[day]!
-    // Ignorer tomme tidsverdier — kan skje om brukeren tømmer feltet
-    if ((field === 'start' || field === 'end') && !value) return
-
-    let finalValue = value
-    if (field === 'end' && value <= current.start) {
-      finalValue = addMinutesToTime(current.start, 30)
-    } else if (field === 'start' && value >= current.end) {
-      const newEnd = addMinutesToTime(value, 30)
-      updateSettings({
-        weeklySchedule: { ...schedule, [day]: { ...current, start: value, end: newEnd } }
-      })
-      return
-    }
-    updateSettings({
-      weeklySchedule: { ...schedule, [day]: { ...current, [field]: finalValue } }
-    })
-  }
 
   const handleEnableNotifications = async () => {
     const granted = await requestNotificationPermission()
@@ -205,62 +148,9 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
 
         {/* Ukeskjema */}
         <section aria-labelledby="set-week">
-          <h3 id="set-week" className="label mb-1">Jobb og skole</h3>
-          <p className="text-sm text-subtle mb-3">Dager du er opptatt. AI planlegger bare i fritiden.</p>
-          <ul className="card divide-y divide-line">
-            {WEEKDAYS.map(({ key, label }) => {
-              const period = schedule[key]
-              const isExpanded = expandedDay === key
-              return (
-                <li key={key}>
-                  <div className="flex items-center pl-4 pr-1 min-h-[52px]">
-                    <span className={`flex-1 text-sm ${period ? 'font-medium' : 'text-muted'}`}>{label}</span>
-                    {period ? (
-                      <>
-                        <button
-                          onClick={() => setExpandedDay(isExpanded ? null : key)}
-                          className="btn-ghost text-sm px-3 tabular"
-                          aria-expanded={isExpanded}
-                          aria-label={`Endre ${label}: ${period.label} ${period.start} til ${period.end}`}
-                        >
-                          {period.start}–{period.end}
-                        </button>
-                        <button onClick={() => removeDay(key)} className="icon-btn" aria-label={`Fjern ${label}`}>
-                          <X size={16} />
-                        </button>
-                      </>
-                    ) : (
-                      <button onClick={() => addDay(key)} className="icon-btn" aria-label={`Legg til ${label}`}>
-                        <Plus size={16} />
-                      </button>
-                    )}
-                  </div>
-                  {period && isExpanded && (
-                    <div className="px-4 pb-4 space-y-2 animate-fade-in">
-                      <input
-                        type="text"
-                        value={period.label}
-                        onChange={e => updateDayPeriod(key, 'label', e.target.value)}
-                        placeholder="Navn, f.eks. Skole"
-                        aria-label="Navn"
-                        className="field py-2 text-sm"
-                      />
-                      <div className="flex gap-2">
-                        <label className="flex-1">
-                          <span className="text-sm text-subtle block mb-1">Fra</span>
-                          <input type="time" value={period.start} onChange={e => updateDayPeriod(key, 'start', e.target.value)} className="field py-2 text-sm tabular" />
-                        </label>
-                        <label className="flex-1">
-                          <span className="text-sm text-subtle block mb-1">Til</span>
-                          <input type="time" value={period.end} onChange={e => updateDayPeriod(key, 'end', e.target.value)} className="field py-2 text-sm tabular" />
-                        </label>
-                      </div>
-                    </div>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
+          <h3 id="set-week" className="label mb-1">Ukeskjema</h3>
+          <p className="text-sm text-subtle mb-3">Legg inn når du er opptatt. Tiden mellom periodene regnes som ledig. Slå av planlegging for dager som helg.</p>
+          <WeekScheduleEditor />
         </section>
 
         {/* Utseende */}

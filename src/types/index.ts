@@ -63,6 +63,12 @@ export interface BlockedPeriod {
 
 export type WeekDay = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
 
+// Én ukedag i ukeskjemaet. Tiden utenfor periodene regnes som ledig.
+export interface DaySchedule {
+  off: boolean              // true = ingen planlegging denne dagen (f.eks. helg)
+  periods: BlockedPeriod[]  // opptatte perioder, f.eks. skole og jobb
+}
+
 export interface DayOverride {
   date: string                    // "YYYY-MM-DD"
   blockedPeriod: BlockedPeriod | null
@@ -83,5 +89,5 @@ export interface UserSettings {
   }
   rememberKeys: boolean
   latestTaskTime: string  // "HH:mm" — seneste tidspunkt AI planlegger oppgaver
-  weeklySchedule?: Partial<Record<WeekDay, BlockedPeriod>>
+  weeklySchedule?: Partial<Record<WeekDay, DaySchedule>>
 }

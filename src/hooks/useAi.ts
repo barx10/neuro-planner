@@ -1,6 +1,6 @@
 import { useSettingsStore } from '../store/settingsStore'
 import { PROVIDERS } from '../utils/aiProviders'
-import type { AiModel, AiProvider } from '../types'
+import type { AiModel, AiProvider, BlockedPeriod } from '../types'
 
 function getSettings() {
   return useSettingsStore.getState().settings
@@ -233,14 +233,14 @@ export interface DayPlanResult {
 
 export async function generateDayPlan(
   input: string,
-  blockedPeriod?: { start: string; end: string; label: string } | null
+  busy: BlockedPeriod[] = []
 ): Promise<DayPlanResult> {
   const now = new Date()
   const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
   const { latestTaskTime } = getSettings()
 
-  const blockedInfo = blockedPeriod
-    ? `\nBRUKEREN ER OPPTATT (${blockedPeriod.label}) fra ${blockedPeriod.start} til ${blockedPeriod.end}. Ikke planlegg NOEN oppgaver i denne perioden. Legg alle oppgaver etter ${blockedPeriod.end}.`
+  const blockedInfo = busy.length > 0
+    ? `\nBRUKEREN ER OPPTATT i disse periodene: ${busy.map(p => `${p.start}–${p.end}${p.label ? ` (${p.label})` : ''}`).join(', ')}. Ingen oppgave kan starte eller pågå i disse periodene. Bruk den ledige tiden mellom og etter periodene.`
     : ''
 
   const result = await chat(

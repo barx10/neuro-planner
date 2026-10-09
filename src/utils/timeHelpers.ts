@@ -28,30 +28,43 @@ export function formatSeconds(seconds: number): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
-import type { BlockedPeriod, WeekDay } from '../types'
+import type { BlockedPeriod, DaySchedule, WeekDay } from '../types'
 
 export const WEEKDAY_MAP: Record<number, WeekDay> = {
   1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat', 0: 'sun'
 }
 
-// Returnerer gjeldende opptatt-tid for en dato, hensyntar per-dag overstyring.
-// override === undefined betyr ingen overstyring finnes (bruk ukeplan).
-// override.blockedPeriod === null betyr eksplisitt fri dag.
-export function getBlockedPeriodForDate(
-  dateStr: string,
-  weeklySchedule: Partial<Record<WeekDay, BlockedPeriod>> | undefined,
-  override: { blockedPeriod: BlockedPeriod | null } | undefined
-): BlockedPeriod | null {
-  if (override !== undefined) return override.blockedPeriod
+const isTime = (t: unknown): t is string => typeof t === 'string' && /^\d{2}:\d{2}$/.test(t)
 
-  if (!weeklySchedule) return null
-
-  // Bruk lokal dato (unngå UTC midnatt-bug — dateStr er "YYYY-MM-DD")
-  const [year, month, day] = dateStr.split('-').map(Number)
-  const date = new Date(year, month - 1, day)
-  const weekday = WEEKDAY_MAP[date.getDay()]
-  const period = weeklySchedule[weekday] ?? null
-  // Valider at tidsverdier er gyldige HH:mm-strenger (ikke NaN fra gamle bugs)
-  if (period && (!/^\d{2}:\d{2}$/.test(period.start) || !/^\d{2}:\d{2}$/.test(period.end))) return null
-  return period
+// Gjør om lagrede verdier til DaySchedule. Eldre versjoner lagret én periode per dag direkte.
+export function normalizeDaySchedule(value: unknown): DaySchedule | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const v = value as Partial<DaySchedule> & Partial<BlockedPeriod>
+  const raw: Partial<BlockedPeriod>[] = Array.isArray(v.periods) ? v.periods : 'start' in v ? [v] : []
+  const periods = raw
+    .filter((p): p is BlockedPeriod => isTime(p.start) && isTime(p.end) && p.start < p.end)
+    .map(p => ({ start: p.start, end: p.end, label: p.label ?? '' }))
+  return { off: !!v.off, periods }
 }
+
+export interface ScheduleForDate extends DaySchedule {
+  overridden: boolean   // brukeren har tatt fri denne datoen
+}
+
+// Ukeskjemaet for en dato, med eventuell overstyring for akkurat den dagen.
+// override.blockedPeriod === null betyr at brukeren har tatt fri.
+export function getScheduleForDate(
+  dateStr: string,
+  weeklySchedule: Partial<Record<WeekDay, DaySchedule>> | undefined,
+  override: { blockedPeriod: BlockedPeriod | null } | undefined
+): ScheduleForDate {
+  if (override !== undefined) {
+    return { off: false, periods: override.blockedPeriod ? [override.blockedPeriod] : [], overridden: true }
+  }
+  const weekday = WEEKDAY_MAP[parseDate(dateStr).getDay()]
+  const day = normalizeDaySchedule(weeklySchedule?.[weekday]) ?? { off: false, periods: [] }
+  const periods = [...day.periods].sort((a, b) => a.start.localeCompare(b.start))
+  return { off: day.off, periods, overridden: false }
+}
+
+export const formatPeriod = (p: BlockedPeriod) => `${p.label ? `${p.label} ` : ''}${p.start}–${p.end}`
