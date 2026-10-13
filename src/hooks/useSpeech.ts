@@ -71,6 +71,18 @@ export async function speak(text: string) {
   }
 }
 
+// Henter lyden for tekster som snart skal leses opp, så de spilles med en gang når tiden kommer
+export function preloadSpeech(texts: string[]) {
+  const { speechEnabled, apiKeys } = useSettingsStore.getState().settings
+  if (speechEnabled === false || !apiKeys.gemini) return
+  unlock()
+  if (!ctx) return
+  const audio = ctx
+  // Én om gangen, så det ikke går ut over grensen for antall kall
+  texts.filter(t => t.trim() && !cache.has(t))
+    .reduce((chain, t) => chain.then(() => fetchBuffer(audio, t).then(() => {}, () => {})), Promise.resolve())
+}
+
 // Henter Gemini-lyden én gang per tekst. Kommer den for sent, ligger den klar til neste gang.
 function fetchBuffer(audio: AudioContext, text: string): Promise<AudioBuffer> {
   let p = pending.get(text)

@@ -5,7 +5,8 @@ import { useTimer } from '../../hooks/useTimer'
 import { useWakeLock } from '../../hooks/useWakeLock'
 import { useTaskStore } from '../../store/taskStore'
 import { formatSeconds } from '../../utils/timeHelpers'
-import { notifyEncouragement, notifyCompletion } from '../../hooks/useNotifications'
+import { notifyEncouragement, notifyCompletion, completionSpeech } from '../../hooks/useNotifications'
+import { preloadSpeech } from '../../hooks/useSpeech'
 import { TimerShell, TimerRing, timerPrimary, timerSecondary } from './TimerShell'
 
 const ENCOURAGEMENTS = [
@@ -17,6 +18,14 @@ const ENCOURAGEMENTS = [
 ]
 
 const COMPLETIONS = ['Bra jobbet.', 'Det klarte du.', 'Ferdig. Godt gjort.']
+
+// Når oppmuntringen kommer, i sekunder fra start: hvert tiende minutt,
+// eller halvveis i oppgaver under 20 minutter, så korte oppgaver også får en.
+function encouragementMarks(totalSeconds: number): number[] {
+  if (totalSeconds < 4 * 60) return []
+  if (totalSeconds < 20 * 60) return [Math.floor(totalSeconds / 2)]
+  return Array.from({ length: Math.ceil(totalSeconds / 600) - 1 }, (_, i) => (i + 1) * 600)
+}
 
 interface FocusTimerProps {
   task: Task
@@ -35,11 +44,21 @@ export function FocusTimer({ task, onClose }: FocusTimerProps) {
   const elapsed = totalSeconds - remaining
   const done = remaining === 0
 
-  // Litt oppmuntring hvert tiende minutt, vist i noen sekunder
-  const intervalIndex = Math.floor(elapsed / (10 * 60))
-  const encouragement = running && intervalIndex > 0 && elapsed - intervalIndex * 600 < 6
+  // Litt oppmuntring underveis, vist i noen sekunder og lest opp
+  const marks = encouragementMarks(totalSeconds)
+  const intervalIndex = marks.filter(m => elapsed >= m).length
+  const encouragement = running && intervalIndex > 0 && elapsed - marks[intervalIndex - 1] < 6
     ? ENCOURAGEMENTS[intervalIndex % ENCOURAGEMENTS.length]
     : null
+
+  // Hent stemmen på forhånd, så den kommer med en gang
+  useEffect(() => {
+    if (!running) return
+    preloadSpeech([
+      ...marks.map((_, i) => ENCOURAGEMENTS[(i + 1) % ENCOURAGEMENTS.length]),
+      completionSpeech(completion, task.title),
+    ])
+  }, [running]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (done && !notified.current.has('done')) {

@@ -11,6 +11,8 @@ import { parseDate, getEndTime } from '../../utils/timeHelpers'
 import { downloadIcs, googleCalendarUrl } from '../../utils/calendar'
 import { Sheet } from '../ui/Sheet'
 import { speak, stopSpeaking } from '../../hooks/useSpeech'
+import { useSpeechRecognition, speechRecognitionSupported } from '../../hooks/useSpeechRecognition'
+import { parseAppointmentLocally } from '../../utils/parseAppointment'
 
 type Phase = 'recording' | 'typing' | 'thinking' | 'review' | 'saved'
 
@@ -37,29 +39,51 @@ export function QuickCapture() {
   const [items, setItems] = useState<Item[]>([])
   const [text, setText] = useState('')
   const [error, setError] = useState('')
+  // Det talegjenkjenningen hørte, vist mens AI tolker
+  const [heard, setHeard] = useState('')
   const cancelled = useRef(false)
   const recorder = useVoiceRecorder({ stopOnSilenceMs: 1600 })
+  const speech = useSpeechRecognition()
+  // Telefonens talegjenkjenning brukes når den finnes. Virker den ikke, tas lyden opp og sendes til AI.
+  const [nativeFailed, setNativeFailed] = useState(false)
   const { addTask } = useTaskStore()
   const { settings } = useSettingsStore()
 
-  const hasVoice = transcriptionProvider() !== null
+  const nativeVoice = speechRecognitionSupported() && !nativeFailed
+  const hasVoice = nativeVoice || transcriptionProvider() !== null
   const hasTextAi = !!settings.apiKeys[settings.aiProvider]
 
-  const interpret = async (input: { text: string } | { audio: Blob }) => {
-    setPhase('thinking')
+  const interpret = async (input: { text: string } | { audio: Blob }, spoken = 'audio' in input) => {
     setError('')
+    setHeard(spoken && 'text' in input ? input.text : '')
+    // Vanlige beskjeder tolkes rett i appen, uten å vente på AI
+    const local = 'text' in input ? parseAppointmentLocally(input.text) : null
+    if (local) {
+      setItems([local])
+      setPhase('review')
+      if (spoken) speak(spokenSummary([local]))
+      return
+    }
+    if ('text' in input && !hasTextAi) {
+      setText(input.text)
+      setError('Fant ikke dag og tid. Rett beskjeden, eller legg inn en API-nøkkel under Innstillinger så AI kan tolke den.')
+      setPhase('typing')
+      return
+    }
+    setPhase('thinking')
     try {
       const result = await parseAppointments(input)
       if (cancelled.current) return
       if (result.items.length === 0) {
         setError(result.heard === '' ? 'Hørte ikke noe tale. Prøv igjen, litt nærmere mikrofonen.' : 'Fant ingen avtale i beskjeden. Prøv å si hva og når.')
         if (result.heard) setText(result.heard)
+        else if ('text' in input) setText(input.text)
         setPhase('typing')
         return
       }
       setItems(result.items)
       setPhase('review')
-      if ('audio' in input) speak(spokenSummary(result.items))
+      if (spoken) speak(spokenSummary(result.items))
     } catch (err) {
       if (cancelled.current) return
       setError(err instanceof Error ? err.message : 'Noe gikk galt.')
@@ -72,6 +96,31 @@ export function QuickCapture() {
     cancelled.current = false
     setError('')
     setPhase('recording')
+    if (nativeVoice) {
+      const outcome = await speech.start()
+      if (cancelled.current) return
+      if (outcome.ok) {
+        if (outcome.text) interpret({ text: outcome.text }, true)
+        else {
+          setError('Hørte ikke noe tale. Prøv igjen, litt nærmere mikrofonen.')
+          setPhase('typing')
+        }
+        return
+      }
+      if (outcome.reason === 'denied') {
+        setError('Appen fikk ikke bruke mikrofonen. Gi tilgang i nettleseren og prøv igjen.')
+        setPhase('typing')
+        return
+      }
+      if (outcome.reason === 'aborted') return
+      // Talegjenkjenningen virker ikke her. Bruk opptak og AI hvis det finnes en nøkkel.
+      setNativeFailed(true)
+      if (transcriptionProvider() === null) {
+        setError('Talegjenkjenning er ikke tilgjengelig. Skriv beskjeden i stedet.')
+        setPhase('typing')
+        return
+      }
+    }
     const audio = await recorder.start()
     if (cancelled.current) return
     if (audio) interpret({ audio })
@@ -92,12 +141,15 @@ export function QuickCapture() {
   const close = () => {
     cancelled.current = true
     stopSpeaking()
+    speech.abort()
     if (recorder.state === 'recording') recorder.stop()
     setOpen(false)
   }
 
   const switchToTyping = () => {
     cancelled.current = true
+    if (speech.transcript) setText(speech.transcript)
+    speech.abort()
     if (recorder.state === 'recording') recorder.stop()
     setPhase('typing')
   }
@@ -169,18 +221,24 @@ export function QuickCapture() {
         <Sheet title="Ny avtale" onClose={close} footer={footer}>
           {phase === 'recording' && (
             <div className="text-center py-4">
-              <p className="text-muted mb-1">Si hva og når, f.eks.</p>
-              <p className="font-medium mb-8">«Tannlegen halv tre på fredag»</p>
+              {speech.transcript ? (
+                <p className="font-medium mb-8 min-h-[3rem]" aria-live="polite">«{speech.transcript}»</p>
+              ) : (
+                <>
+                  <p className="text-muted mb-1">Si hva og når, f.eks.</p>
+                  <p className="font-medium mb-8">«Tannlegen halv tre på fredag»</p>
+                </>
+              )}
               <button
-                onClick={() => recorder.stop()}
-                disabled={recorder.state !== 'recording'}
+                onClick={() => (speech.listening ? speech.stop() : recorder.stop())}
+                disabled={!speech.listening && recorder.state !== 'recording'}
                 className="w-24 h-24 rounded-full bg-accent text-on-accent flex flex-col items-center justify-center mx-auto shadow-lg disabled:opacity-60"
                 aria-label="Stopp opptak"
               >
-                {recorder.state === 'recording' ? <Square size={28} fill="currentColor" /> : <Loader2 size={28} className="animate-spin" />}
+                {speech.listening || recorder.state === 'recording' ? <Square size={28} fill="currentColor" /> : <Loader2 size={28} className="animate-spin" />}
               </button>
               <p className="text-sm text-subtle mt-4 tabular" aria-live="polite">
-                {recorder.state === 'recording' ? `Tar opp · ${fmt(recorder.seconds)} · stopper selv når du tier` : 'Starter mikrofonen …'}
+                {speech.listening ? 'Lytter · stopper selv når du tier' : recorder.state === 'recording' ? `Tar opp · ${fmt(recorder.seconds)} · stopper selv når du tier` : 'Starter mikrofonen …'}
               </p>
               {recorder.error && <p role="alert" className="text-sm text-danger mt-3">{recorder.error}</p>}
               <button onClick={switchToTyping} className="btn-ghost text-sm mt-4">
@@ -190,9 +248,12 @@ export function QuickCapture() {
           )}
 
           {phase === 'thinking' && (
-            <p className="flex items-center justify-center gap-2 py-12 text-muted" role="status">
-              <Loader2 size={18} className="animate-spin" /> Forstår beskjeden …
-            </p>
+            <div className="text-center py-12" role="status">
+              {heard && <p className="font-medium mb-3">«{heard}»</p>}
+              <p className="flex items-center justify-center gap-2 text-muted">
+                <Loader2 size={18} className="animate-spin" /> Forstår beskjeden …
+              </p>
+            </div>
           )}
 
           {phase === 'typing' && (
