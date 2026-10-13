@@ -22,7 +22,7 @@ Oversikt: Hvor mye du har fått gjort denne uken, og hvordan energien har vært.
   },
   {
     title: 'Snakk inn en avtale',
-    content: `Kommer du på noe i løpet av dagen, trykk på mikrofonknappen nede til høyre og si hva og når, for eksempel «tannlegen halv tre på fredag». Opptaket stopper av seg selv når du tier. Appen finner dag og tid og viser et forslag du kan rette før det legges inn.
+    content: `Kommer du på noe i løpet av dagen, trykk på mikrofonknappen nede til høyre og si hva og når, for eksempel «tannlegen halv tre på fredag». Opptaket stopper av seg selv når du tier. Telefonen gjør talen om til tekst, og appen finner dag og tid og viser et forslag du kan rette før det legges inn.
 
 Appen leser opp det den forstod, så du kan høre om dag og tid stemmer. Opplesning kan slås av under Innstillinger.
 
@@ -38,7 +38,7 @@ Lengre oppgaver deles i økter på 25 minutter. Mellom øktene velger du selv om
     title: 'Planlegg med AI',
     content: `Skriv eller snakk inn hva du skal gjøre, så får du et forslag med tider og pauser. Trykker du «Snakk inn», tas tale opp og gjøres om til tekst du kan se over før planen lages. Du kan justere tidene før du legger planen inn. Når du redigerer en oppgave, kan AI også dele den opp i små steg.
 
-Du bruker din egen API-nøkkel fra Google Gemini, OpenAI eller Anthropic. Legg den inn under Innstillinger. Stemme krever nøkkel fra Gemini eller OpenAI, siden Anthropic ikke tar imot lyd.`,
+Du bruker din egen API-nøkkel fra Google Gemini, OpenAI eller Anthropic. Legg den inn under Innstillinger. Tale gjøres om til tekst av telefonen selv, i Chrome, Edge og Safari. I andre nettlesere trengs en nøkkel fra Gemini eller OpenAI, siden Anthropic ikke tar imot lyd.`,
   },
   {
     title: 'Personvern og API-nøkler',
