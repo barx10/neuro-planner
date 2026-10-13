@@ -208,6 +208,43 @@ export async function transcribeAudio(audio: Blob): Promise<string> {
   })
 }
 
+// --- Tekst til tale ---
+
+const TTS_MODEL = 'gemini-3.8-flash-tts'
+const TTS_VOICE = 'Kore'
+
+// Leser opp teksten med Gemini. Svaret er WAV, 24 kHz mono, som base64.
+export async function synthesizeSpeech(text: string): Promise<ArrayBuffer> {
+  const { apiKeys } = getSettings()
+  if (!apiKeys.gemini) throw new Error('Opplesning krever en API-nøkkel fra Google Gemini.')
+  const data = await postJson('https://generativelanguage.googleapis.com/v1beta/interactions', {
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKeys.gemini },
+    body: JSON.stringify({
+      model: TTS_MODEL,
+      input: [{
+        type: 'user_input',
+        content: [{
+          type: 'text',
+          text,
+          annotations: [{ type: 'speech_metadata', style: 'calm and warm' }],
+        }],
+      }],
+      response_format: { type: 'audio' },
+      generation_config: { speech_config: [{ voice: TTS_VOICE }] },
+    }),
+  })
+  const steps: { type?: string; content?: { type?: string; data?: string }[] }[] = data.steps ?? []
+  const audio = steps
+    .filter(s => s.type === 'model_output')
+    .flatMap(s => s.content ?? [])
+    .find(c => c.type === 'audio' && c.data)
+  if (!audio?.data) throw new Error('Tomt lydsvar fra Gemini')
+  const bin = atob(audio.data)
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+  return bytes.buffer
+}
+
 // --- Public API ---
 
 export async function breakdownTask(taskTitle: string): Promise<string[]> {

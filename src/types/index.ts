@@ -89,6 +89,7 @@ export interface UserSettings {
     anthropic: string
   }
   rememberKeys: boolean
+  speechEnabled?: boolean  // les opp beskjeder med stemme
   latestTaskTime: string  // "HH:mm" — seneste tidspunkt AI planlegger oppgaver
   weeklySchedule?: Partial<Record<WeekDay, DaySchedule>>
 }

@@ -1,4 +1,5 @@
 import type { Task } from '../types'
+import { speak } from './useSpeech'
 
 const DEFAULT_REMINDER_MIN = 5
 
@@ -62,6 +63,8 @@ export function notifyEncouragement(emoji: string, text: string) {
 export function notifyCompletion(taskEmoji: string, taskTitle: string, completionText: string) {
   playDing('celebrate')
   notify(`${taskEmoji} ${taskTitle} fullført!`, completionText, 'completion')
+  // Vent til klokkespillet er ferdig før stemmen tar over
+  setTimeout(() => speak(`${completionText} ${taskTitle} er ferdig.`), 700)
 }
 
 function getTaskTimeMs(task: Task, dateStr: string): number {

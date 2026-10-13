@@ -10,6 +10,7 @@ import { TASK_COLORS } from '../../utils/colorHelpers'
 import { parseDate, getEndTime } from '../../utils/timeHelpers'
 import { downloadIcs, googleCalendarUrl } from '../../utils/calendar'
 import { Sheet } from '../ui/Sheet'
+import { speak, stopSpeaking } from '../../hooks/useSpeech'
 
 type Phase = 'recording' | 'typing' | 'thinking' | 'review' | 'saved'
 
@@ -19,6 +20,15 @@ const dayLabel = (date: string) => format(parseDate(date), 'EEEE d. MMMM', { loc
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
 type Item = ParsedAppointment & { startTime: string | null }
+
+// Det appen forstod, lest opp så brukeren kan høre om det stemmer
+function spokenSummary(items: Item[]): string {
+  const parts = items.map(it =>
+    `${it.title} ${dayLabel(it.date)}${it.startTime ? ` klokken ${it.startTime}` : ''}`
+  )
+  const missingTime = items.some(it => !it.startTime)
+  return `Jeg fant ${parts.join(', og ')}.${missingTime ? ' Velg tid før du legger det til.' : ' Stemmer det?'}`
+}
 
 // Fast mikrofonknapp: si en avtale, se over og legg den inn på riktig dag.
 export function QuickCapture() {
@@ -49,6 +59,7 @@ export function QuickCapture() {
       }
       setItems(result.items)
       setPhase('review')
+      if ('audio' in input) speak(spokenSummary(result.items))
     } catch (err) {
       if (cancelled.current) return
       setError(err instanceof Error ? err.message : 'Noe gikk galt.')
@@ -57,6 +68,7 @@ export function QuickCapture() {
   }
 
   const startRecording = async () => {
+    stopSpeaking()
     cancelled.current = false
     setError('')
     setPhase('recording')
@@ -79,6 +91,7 @@ export function QuickCapture() {
 
   const close = () => {
     cancelled.current = true
+    stopSpeaking()
     if (recorder.state === 'recording') recorder.stop()
     setOpen(false)
   }
