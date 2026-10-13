@@ -24,13 +24,15 @@ Oversikt: Hvor mye du har fått gjort denne uken, og hvordan energien har vært.
     title: 'Snakk inn en avtale',
     content: `Kommer du på noe i løpet av dagen, trykk på mikrofonknappen nede til høyre og si hva og når, for eksempel «tannlegen halv tre på fredag». Appen finner dag og tid og viser et forslag du kan rette før det legges inn.
 
+Appen leser opp det den forstod, så du kan høre om dag og tid stemmer. Opplesning kan slås av under Innstillinger.
+
 Påminnelser fra appen kommer bare når den er åpen eller nylig brukt. Vil du være sikker på å bli minnet på det, trykk «Legg i kalender» etterpå, så tar telefonens kalender seg av påminnelsen.`,
   },
   {
     title: 'Tidtaker og fokusøkter',
     content: `Oppgaver under 25 minutter får en enkel nedtelling.
 
-Lengre oppgaver deles i økter på 25 minutter. Mellom øktene velger du selv om du vil ha 3 eller 5 minutter pause, eller hoppe over den. Når tiden er ute, kan du krysse av oppgaven rett fra tidtakeren.`,
+Lengre oppgaver deles i økter på 25 minutter. Mellom øktene velger du selv om du vil ha 3 eller 5 minutter pause, eller hoppe over den. Når tiden er ute, sier appen fra med stemme, og du kan krysse av oppgaven rett fra tidtakeren.`,
   },
   {
     title: 'Planlegg med AI',

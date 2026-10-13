@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   aiModel: 'gemini-3.8-flash',
   apiKeys: { gemini: '', openai: '', anthropic: '' },
   rememberKeys: true,
+  speechEnabled: true,
   latestTaskTime: '21:00',
   weeklySchedule: {}
 }

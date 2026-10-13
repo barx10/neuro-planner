@@ -175,6 +175,29 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
           </div>
         </section>
 
+        {/* Opplesning */}
+        <section aria-labelledby="set-speech">
+          <h3 id="set-speech" className="label mb-3">Opplesning</h3>
+          <button
+            role="switch"
+            aria-checked={settings.speechEnabled !== false}
+            onClick={() => updateSettings({ speechEnabled: settings.speechEnabled === false })}
+            className="w-full flex items-center gap-3 min-h-[56px] text-left"
+          >
+            <span className="flex-1">
+              <span className="block text-sm font-medium">Les opp med stemme</span>
+              <span className="block text-sm text-subtle">
+                {settings.apiKeys.gemini
+                  ? 'Gemini leser opp avtaler du snakker inn, og sier fra når tidtakeren er ferdig'
+                  : 'Bruker enhetens stemme. Med Gemini-nøkkel får du en mer naturlig stemme'}
+              </span>
+            </span>
+            <span className={`w-11 h-6 rounded-full relative transition-colors shrink-0 ${settings.speechEnabled !== false ? 'bg-accent' : 'bg-subtle/50'}`}>
+              <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${settings.speechEnabled !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+            </span>
+          </button>
+        </section>
+
         {/* Varsler */}
         <section aria-labelledby="set-notif">
           <h3 id="set-notif" className="label mb-3">Varsler</h3>
