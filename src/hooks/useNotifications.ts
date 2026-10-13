@@ -57,14 +57,18 @@ function notify(title: string, body: string, tag?: string) {
 export function notifyEncouragement(emoji: string, text: string) {
   playDing('soft')
   notify(`${emoji} ${text}`.trim(), 'Fortsett i ditt tempo.')
+  setTimeout(() => speak(text), 500)
 }
+
+/** Teksten som leses opp når en oppgave er ferdig */
+export const completionSpeech = (completionText: string, taskTitle: string) => `${completionText} ${taskTitle} er ferdig.`
 
 /** Send completion notification + celebration sound */
 export function notifyCompletion(taskEmoji: string, taskTitle: string, completionText: string) {
   playDing('celebrate')
   notify(`${taskEmoji} ${taskTitle} fullført!`, completionText, 'completion')
   // Vent til klokkespillet er ferdig før stemmen tar over
-  setTimeout(() => speak(`${completionText} ${taskTitle} er ferdig.`), 700)
+  setTimeout(() => speak(completionSpeech(completionText, taskTitle)), 700)
 }
 
 function getTaskTimeMs(task: Task, dateStr: string): number {

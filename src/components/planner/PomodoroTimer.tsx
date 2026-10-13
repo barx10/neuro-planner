@@ -6,6 +6,7 @@ import { formatSeconds } from '../../utils/timeHelpers'
 import { useTaskStore } from '../../store/taskStore'
 import { TimerShell, TimerRing, timerPrimary, timerSecondary } from './TimerShell'
 import { notifyEncouragement, notifyCompletion, playDing } from '../../hooks/useNotifications'
+import { preloadSpeech } from '../../hooks/useSpeech'
 
 const POMODORO_S = 25 * 60
 
@@ -115,6 +116,11 @@ export function PomodoroTimer({ task, onClose }: Props) {
       notifyCompletion(task.emoji, task.title, `${state.pomodoroCount} ${state.pomodoroCount === 1 ? 'økt' : 'økter'} fullført.`)
     }
   }, [state.phase]) // eslint-disable-line
+
+  // Hent stemmen for oppmuntringene på forhånd
+  useEffect(() => {
+    if (state.running) preloadSpeech(ENCOURAGEMENTS)
+  }, [state.running])
 
   // Encouragements every 10 min during work
   const elapsed = state.phase === 'work' ? state.sessionDuration - state.secondsLeft : 0
