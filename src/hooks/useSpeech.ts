@@ -45,12 +45,13 @@ function speakWithBrowser(text: string) {
 }
 
 // Leser opp teksten hvis opplesning er slått på. Feiler stille: tale er et tillegg, ikke en forutsetning.
-export async function speak(text: string) {
+// instant: bruk enhetens stemme med en gang, for svar brukeren venter på og som ikke kan hentes på forhånd.
+export async function speak(text: string, { instant = false } = {}) {
   const { speechEnabled, apiKeys } = useSettingsStore.getState().settings
   if (speechEnabled === false || !text.trim()) return
   stopSpeaking()
 
-  if (!apiKeys.gemini) {
+  if (instant || !apiKeys.gemini) {
     speakWithBrowser(text)
     return
   }

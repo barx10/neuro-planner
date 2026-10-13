@@ -5,7 +5,6 @@ import { nb } from 'date-fns/locale'
 import { useVoiceRecorder } from '../../hooks/useVoiceRecorder'
 import { parseAppointments, transcriptionProvider, type ParsedAppointment } from '../../hooks/useAi'
 import { useTaskStore } from '../../store/taskStore'
-import { useSettingsStore } from '../../store/settingsStore'
 import { TASK_COLORS } from '../../utils/colorHelpers'
 import { parseDate, getEndTime } from '../../utils/timeHelpers'
 import { downloadIcs, googleCalendarUrl } from '../../utils/calendar'
@@ -32,6 +31,19 @@ function spokenSummary(items: Item[]): string {
   return `Jeg fant ${parts.join(', og ')}.${missingTime ? ' Velg tid før du legger det til.' : ' Stemmer det?'}`
 }
 
+// Det brukeren sa, som tittel, når appen ikke fant dag og tid
+function unparsed(text: string): Item {
+  const title = text.trim().replace(/[.!?]+$/, '')
+  return {
+    title: title.charAt(0).toUpperCase() + title.slice(1),
+    emoji: '\u{1F4CC}',
+    date: format(new Date(), 'yyyy-MM-dd'),
+    startTime: null,
+    durationMinutes: 30,
+    reminderMinutes: 10,
+  }
+}
+
 // Fast mikrofonknapp: si en avtale, se over og legg den inn på riktig dag.
 export function QuickCapture() {
   const [open, setOpen] = useState(false)
@@ -47,29 +59,23 @@ export function QuickCapture() {
   // Telefonens talegjenkjenning brukes når den finnes. Virker den ikke, tas lyden opp og sendes til AI.
   const [nativeFailed, setNativeFailed] = useState(false)
   const { addTask } = useTaskStore()
-  const { settings } = useSettingsStore()
 
   const nativeVoice = speechRecognitionSupported() && !nativeFailed
   const hasVoice = nativeVoice || transcriptionProvider() !== null
-  const hasTextAi = !!settings.apiKeys[settings.aiProvider]
 
   const interpret = async (input: { text: string } | { audio: Blob }, spoken = 'audio' in input) => {
     setError('')
     setHeard(spoken && 'text' in input ? input.text : '')
-    // Vanlige beskjeder tolkes rett i appen, uten å vente på AI
-    const local = 'text' in input ? parseAppointmentLocally(input.text) : null
-    if (local) {
-      setItems([local])
+    // Tekst tolkes rett i appen, uten AI, så avtalen står klar med en gang.
+    // Finner appen ikke dag og tid, fyller brukeren inn det som mangler selv.
+    if ('text' in input) {
+      const item = parseAppointmentLocally(input.text) ?? unparsed(input.text)
+      setItems([item])
       setPhase('review')
-      if (spoken) speak(spokenSummary([local]))
+      if (spoken) speak(spokenSummary([item]), { instant: true })
       return
     }
-    if ('text' in input && !hasTextAi) {
-      setText(input.text)
-      setError('Fant ikke dag og tid. Rett beskjeden, eller legg inn en API-nøkkel under Innstillinger så AI kan tolke den.')
-      setPhase('typing')
-      return
-    }
+    // Lydopptak brukes bare der telefonen mangler talegjenkjenning, og må tolkes av AI
     setPhase('thinking')
     try {
       const result = await parseAppointments(input)
@@ -77,13 +83,12 @@ export function QuickCapture() {
       if (result.items.length === 0) {
         setError(result.heard === '' ? 'Hørte ikke noe tale. Prøv igjen, litt nærmere mikrofonen.' : 'Fant ingen avtale i beskjeden. Prøv å si hva og når.')
         if (result.heard) setText(result.heard)
-        else if ('text' in input) setText(input.text)
         setPhase('typing')
         return
       }
       setItems(result.items)
       setPhase('review')
-      if (spoken) speak(spokenSummary(result.items))
+      if (spoken) speak(spokenSummary(result.items), { instant: true })
     } catch (err) {
       if (cancelled.current) return
       setError(err instanceof Error ? err.message : 'Noe gikk galt.')
@@ -134,7 +139,7 @@ export function QuickCapture() {
     if (hasVoice) startRecording()
     else {
       setPhase('typing')
-      setError(hasTextAi ? '' : 'Legg inn en API-nøkkel under Innstillinger for å bruke dette.')
+      setError('')
     }
   }
 
@@ -199,10 +204,10 @@ export function QuickCapture() {
         )}
         <button
           onClick={() => interpret({ text })}
-          disabled={!text.trim() || !hasTextAi}
+          disabled={!text.trim()}
           className="btn-primary flex-1"
         >
-          Tolk beskjeden
+          Fortsett
         </button>
       </div>
     ) : undefined
