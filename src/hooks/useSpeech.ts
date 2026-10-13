@@ -6,6 +6,13 @@ import { useSettingsStore } from '../store/settingsStore'
 let ctx: AudioContext | null = null
 let current: AudioBufferSourceNode | null = null
 const cache = new Map<string, AudioBuffer>()
+const pending = new Map<string, Promise<AudioBuffer>>()
+// Teller som øker for hver ny opplesning, så et sent svar ikke spilles over et nyere
+let generation = 0
+
+// Hvor lenge Gemini-stemmen får bruke før nettleserens stemme tar over. Å vente lenger
+// på svar enn dette kjennes som at appen har hengt seg opp.
+const GEMINI_DEADLINE_MS = 1800
 
 function unlock() {
   try {
@@ -22,6 +29,7 @@ if (typeof document !== 'undefined') {
 }
 
 export function stopSpeaking() {
+  generation++
   try { current?.stop() } catch { /* allerede stoppet */ }
   current = null
   if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel()
@@ -46,14 +54,12 @@ export async function speak(text: string) {
     speakWithBrowser(text)
     return
   }
+  const mine = generation
   try {
     unlock()
     if (!ctx) throw new Error('Ingen lydkontekst')
-    let buffer = cache.get(text)
-    if (!buffer) {
-      buffer = await ctx.decodeAudioData(await synthesizeSpeech(text))
-      cache.set(text, buffer)
-    }
+    const buffer = cache.get(text) ?? await withDeadline(fetchBuffer(ctx, text), GEMINI_DEADLINE_MS)
+    if (mine !== generation) return
     const source = ctx.createBufferSource()
     source.buffer = buffer
     source.connect(ctx.destination)
@@ -61,6 +67,26 @@ export async function speak(text: string) {
     current = source
     source.start()
   } catch {
-    speakWithBrowser(text)
+    if (mine === generation) speakWithBrowser(text)
   }
+}
+
+// Henter Gemini-lyden én gang per tekst. Kommer den for sent, ligger den klar til neste gang.
+function fetchBuffer(audio: AudioContext, text: string): Promise<AudioBuffer> {
+  let p = pending.get(text)
+  if (!p) {
+    p = synthesizeSpeech(text)
+      .then(data => audio.decodeAudioData(data))
+      .then(buffer => { cache.set(text, buffer); return buffer })
+      .finally(() => pending.delete(text))
+    pending.set(text, p)
+  }
+  return p
+}
+
+function withDeadline<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('For tregt')), ms)
+    p.then(v => { clearTimeout(t); resolve(v) }, e => { clearTimeout(t); reject(e) })
+  })
 }
