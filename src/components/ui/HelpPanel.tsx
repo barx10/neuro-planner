@@ -22,7 +22,7 @@ Oversikt: Hvor mye du har fått gjort denne uken, og hvordan energien har vært.
   },
   {
     title: 'Snakk inn en avtale',
-    content: `Kommer du på noe i løpet av dagen, trykk på mikrofonknappen nede til høyre og si hva og når, for eksempel «tannlegen halv tre på fredag». Appen finner dag og tid og viser et forslag du kan rette før det legges inn.
+    content: `Kommer du på noe i løpet av dagen, trykk på mikrofonknappen nede til høyre og si hva og når, for eksempel «tannlegen halv tre på fredag». Opptaket stopper av seg selv når du tier. Appen finner dag og tid og viser et forslag du kan rette før det legges inn.
 
 Appen leser opp det den forstod, så du kan høre om dag og tid stemmer. Opplesning kan slås av under Innstillinger.
 

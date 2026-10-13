@@ -69,7 +69,10 @@ async function anthropicChat(model: AiModel, system: string, userMessage: string
 
 // --- Gemini ---
 
-async function geminiChat(model: AiModel, system: string, userMessage: string): Promise<string> {
+// Gemini tenker før den svarer. For korte tolkeoppgaver gir minimal tenking samme svar langt raskere.
+const FAST_THINKING = { thinkingLevel: 'minimal' }
+
+async function geminiChat(model: AiModel, system: string, userMessage: string, fast = false): Promise<string> {
   const { apiKeys } = getSettings()
   if (!apiKeys.gemini) throw new Error('Mangler Gemini API-nøkkel')
   const data = await postJson(
@@ -81,7 +84,8 @@ async function geminiChat(model: AiModel, system: string, userMessage: string): 
         contents: [{ parts: [{ text: userMessage }] }],
         generationConfig: {
           temperature: 0.7,
-          responseMimeType: 'application/json'
+          responseMimeType: 'application/json',
+          ...(fast && { thinkingConfig: FAST_THINKING })
         }
       })
     }
@@ -137,10 +141,10 @@ function modelOrder(provider: AiProvider, preferred?: AiModel): AiModel[] {
   return preferred && all.includes(preferred) ? [preferred, ...all.filter(m => m !== preferred)] : all
 }
 
-async function chat(system: string, userMessage: string, maxTokens = 500): Promise<string> {
+async function chat(system: string, userMessage: string, maxTokens = 500, fast = false): Promise<string> {
   const { aiProvider, aiModel } = getSettings()
   return withFallback(modelOrder(aiProvider, aiModel), model => {
-    if (aiProvider === 'gemini') return geminiChat(model, system, userMessage)
+    if (aiProvider === 'gemini') return geminiChat(model, system, userMessage, fast)
     if (aiProvider === 'openai') return openaiChat(model, system, userMessage, maxTokens)
     return anthropicChat(model, system, userMessage, maxTokens)
   })
@@ -199,7 +203,7 @@ export async function transcribeAudio(audio: Blob): Promise<string> {
               { inline_data: { mime_type: 'audio/wav', data: base64 } },
             ],
           }],
-          generationConfig: { temperature: 0 },
+          generationConfig: { temperature: 0, thinkingConfig: FAST_THINKING },
         }),
       }
     )
@@ -366,13 +370,13 @@ function parseItems(raw: string): ParsedAppointment[] {
 export async function parseAppointments(input: { text: string } | { audio: Blob }): Promise<{ items: ParsedAppointment[]; heard?: string }> {
   const system = appointmentPrompt()
 
-  if ('text' in input) return { items: parseItems(await chat(system, input.text, 800)) }
+  if ('text' in input) return { items: parseItems(await chat(system, input.text, 800, true)) }
 
   const { aiProvider, aiModel, apiKeys } = getSettings()
   if (transcriptionProvider() !== 'gemini') {
     const heard = await transcribeAudio(input.audio)
     if (!heard) return { items: [], heard }
-    return { items: parseItems(await chat(system, heard, 800)), heard }
+    return { items: parseItems(await chat(system, heard, 800, true)), heard }
   }
 
   const base64 = await blobToBase64(input.audio)
@@ -387,7 +391,7 @@ export async function parseAppointments(input: { text: string } | { audio: Blob 
             { text: 'Her er beskjeden som lydopptak:' },
             { inline_data: { mime_type: 'audio/wav', data: base64 } },
           ] }],
-          generationConfig: { temperature: 0, responseMimeType: 'application/json' },
+          generationConfig: { temperature: 0, responseMimeType: 'application/json', thinkingConfig: FAST_THINKING },
         }),
       }
     )

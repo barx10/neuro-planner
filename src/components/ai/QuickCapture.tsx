@@ -38,7 +38,7 @@ export function QuickCapture() {
   const [text, setText] = useState('')
   const [error, setError] = useState('')
   const cancelled = useRef(false)
-  const recorder = useVoiceRecorder()
+  const recorder = useVoiceRecorder({ stopOnSilenceMs: 1600 })
   const { addTask } = useTaskStore()
   const { settings } = useSettingsStore()
 
@@ -180,7 +180,7 @@ export function QuickCapture() {
                 {recorder.state === 'recording' ? <Square size={28} fill="currentColor" /> : <Loader2 size={28} className="animate-spin" />}
               </button>
               <p className="text-sm text-subtle mt-4 tabular" aria-live="polite">
-                {recorder.state === 'recording' ? `Tar opp · ${fmt(recorder.seconds)} · trykk for å stoppe` : 'Starter mikrofonen …'}
+                {recorder.state === 'recording' ? `Tar opp · ${fmt(recorder.seconds)} · stopper selv når du tier` : 'Starter mikrofonen …'}
               </p>
               {recorder.error && <p role="alert" className="text-sm text-danger mt-3">{recorder.error}</p>}
               <button onClick={switchToTyping} className="btn-ghost text-sm mt-4">
