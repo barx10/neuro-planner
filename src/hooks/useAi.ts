@@ -70,26 +70,42 @@ async function anthropicChat(model: AiModel, system: string, userMessage: string
 // --- Gemini ---
 
 // Gemini tenker før den svarer. For korte tolkeoppgaver gir minimal tenking samme svar langt raskere.
+// Ikke alle modeller støtter det. Avviser modellen innstillingen, sendes kallet på nytt uten, og modellen huskes.
 const FAST_THINKING = { thinkingLevel: 'minimal' }
+const noFastThinking = new Set<string>()
+
+async function geminiGenerate(model: string, body: { generationConfig?: object; [key: string]: unknown }, fast: boolean) {
+  const { apiKeys } = getSettings()
+  const send = (thinking: boolean) => postJson(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKeys.gemini}`,
+    {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(thinking
+        ? { ...body, generationConfig: { ...body.generationConfig, thinkingConfig: FAST_THINKING } }
+        : body),
+    }
+  )
+  if (!fast || noFastThinking.has(model)) return send(false)
+  try {
+    return await send(true)
+  } catch (err) {
+    if (err instanceof TransientError || !(err instanceof Error) || !/think/i.test(err.message)) throw err
+    noFastThinking.add(model)
+    return send(false)
+  }
+}
 
 async function geminiChat(model: AiModel, system: string, userMessage: string, fast = false): Promise<string> {
   const { apiKeys } = getSettings()
   if (!apiKeys.gemini) throw new Error('Mangler Gemini API-nøkkel')
-  const data = await postJson(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKeys.gemini}`,
-    {
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: system }] },
-        contents: [{ parts: [{ text: userMessage }] }],
-        generationConfig: {
-          temperature: 0.7,
-          responseMimeType: 'application/json',
-          ...(fast && { thinkingConfig: FAST_THINKING })
-        }
-      })
+  const data = await geminiGenerate(model, {
+    system_instruction: { parts: [{ text: system }] },
+    contents: [{ parts: [{ text: userMessage }] }],
+    generationConfig: {
+      temperature: 0.7,
+      responseMimeType: 'application/json'
     }
-  )
+  }, fast)
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text
   if (!text) throw new Error('Tomt svar fra Gemini')
   return text.trim()
@@ -192,21 +208,15 @@ export async function transcribeAudio(audio: Blob): Promise<string> {
   const base64 = await blobToBase64(audio)
   const models = modelOrder('gemini', aiProvider === 'gemini' ? aiModel : undefined)
   return withFallback(models, async model => {
-    const data = await postJson(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKeys.gemini}`,
-      {
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: 'Skriv ned nøyaktig hva som blir sagt i lydopptaket, på det språket det snakkes (som regel norsk). Svar bare med teksten, uten kommentarer. Er opptaket stille eller uforståelig, svar med en tom streng.' },
-              { inline_data: { mime_type: 'audio/wav', data: base64 } },
-            ],
-          }],
-          generationConfig: { temperature: 0, thinkingConfig: FAST_THINKING },
-        }),
-      }
-    )
+    const data = await geminiGenerate(model, {
+      contents: [{
+        parts: [
+          { text: 'Skriv ned nøyaktig hva som blir sagt i lydopptaket, på det språket det snakkes (som regel norsk). Svar bare med teksten, uten kommentarer. Er opptaket stille eller uforståelig, svar med en tom streng.' },
+          { inline_data: { mime_type: 'audio/wav', data: base64 } },
+        ],
+      }],
+      generationConfig: { temperature: 0 },
+    }, true)
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text
     return String(text ?? '').trim()
   })
@@ -372,7 +382,7 @@ export async function parseAppointments(input: { text: string } | { audio: Blob 
 
   if ('text' in input) return { items: parseItems(await chat(system, input.text, 800, true)) }
 
-  const { aiProvider, aiModel, apiKeys } = getSettings()
+  const { aiProvider, aiModel } = getSettings()
   if (transcriptionProvider() !== 'gemini') {
     const heard = await transcribeAudio(input.audio)
     if (!heard) return { items: [], heard }
@@ -381,20 +391,14 @@ export async function parseAppointments(input: { text: string } | { audio: Blob 
 
   const base64 = await blobToBase64(input.audio)
   const raw = await withFallback(modelOrder('gemini', aiProvider === 'gemini' ? aiModel : undefined), async model => {
-    const data = await postJson(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKeys.gemini}`,
-      {
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: system }] },
-          contents: [{ parts: [
-            { text: 'Her er beskjeden som lydopptak:' },
-            { inline_data: { mime_type: 'audio/wav', data: base64 } },
-          ] }],
-          generationConfig: { temperature: 0, responseMimeType: 'application/json', thinkingConfig: FAST_THINKING },
-        }),
-      }
-    )
+    const data = await geminiGenerate(model, {
+      system_instruction: { parts: [{ text: system }] },
+      contents: [{ parts: [
+        { text: 'Her er beskjeden som lydopptak:' },
+        { inline_data: { mime_type: 'audio/wav', data: base64 } },
+      ] }],
+      generationConfig: { temperature: 0, responseMimeType: 'application/json' },
+    }, true)
     return String(data.candidates?.[0]?.content?.parts?.[0]?.text ?? '{"items":[]}')
   })
   return { items: parseItems(raw) }
